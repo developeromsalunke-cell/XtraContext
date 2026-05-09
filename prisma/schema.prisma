@@ -1,0 +1,247 @@
+// =============================================================================
+// ContextVault — Prisma Schema
+// Universal memory layer for AI conversations
+// =============================================================================
+
+generator client {
+  provider   = "prisma-client-js"
+  output     = "../generated/prisma/client"
+  engineType = "library"
+}
+
+
+datasource db {
+  provider = "cockroachdb"
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum Role {
+  ADMIN
+  DEVELOPER
+  VIEWER
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum Platform {
+  CHATGPT
+  CLAUDE
+  GEMINI
+  PERPLEXITY
+  CURSOR
+  WINDSURF
+  CLI
+  API
+}
+
+enum AiModel {
+  GPT_3_5_TURBO
+  GPT_4
+  GPT_4_TURBO
+  GPT_4O
+  CLAUDE_2
+  CLAUDE_3_HAIKU
+  CLAUDE_3_SONNET
+  CLAUDE_3_OPUS
+  GEMINI_PRO
+  GEMINI_ULTRA
+  LLAMA_3
+  MISTRAL_LARGE
+  OTHER
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+// CockroachDB Internal Region (DO NOT REMOVE)
+enum crdb_internal_region {
+  aws_ap_south_1 @map("aws-ap-south-1")
+}
+
+// =============================================================================
+// User — Authentication identity
+// =============================================================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  memberships   TeamMember[]
+  contextStates ContextState[] @relation("CreatedByUser")
+  conversations Conversation[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// =============================================================================
+// Team — Multi-tenant organization
+// =============================================================================
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      Plan     @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members  TeamMember[]
+  projects Project[]
+  apiKeys  ApiKey[]
+
+  @@index([slug])
+  @@map("teams")
+}
+
+// =============================================================================
+// TeamMember — RBAC junction between User and Team
+// =============================================================================
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  role      Role     @default(DEVELOPER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+// =============================================================================
+// Project — Scoped to a Team
+// =============================================================================
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teamId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  contextStates ContextState[]
+  conversations Conversation[]
+
+  @@index([teamId])
+  @@map("projects")
+}
+
+// =============================================================================
+// Conversation — A thread of messages captured from an AI platform
+// =============================================================================
+
+model Conversation {
+  id          String   @id @default(cuid())
+  externalId  String?  @unique // Original ID from platform
+  title       String
+  platform    Platform @default(CHATGPT)
+  model       AiModel  @default(GPT_4)
+  projectId   String
+  userId      String
+  totalTokens Int      @default(0)
+  totalCost   Decimal  @default(0) @db.Decimal(10, 4)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([externalId])
+  @@map("conversations")
+}
+
+// =============================================================================
+// Message — Individual prompt or response
+// =============================================================================
+
+model Message {
+  id             String      @id @default(cuid())
+  conversationId String
+  role           MessageRole @default(USER)
+  content        String
+  tokens         Int?
+  cost           Decimal?    @db.Decimal(10, 4)
+  createdAt      DateTime    @default(now())
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// =============================================================================
+// ContextState — Immutable, append-only versioned history of project context
+// =============================================================================
+
+model ContextState {
+  id          String   @id @default(cuid())
+  projectId   String
+  version     Int
+  content     String
+  checksum    String   // SHA-256 hex digest
+  createdById String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("CreatedByUser", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, version])
+  @@index([projectId, version(sort: Desc)])
+  @@index([createdById])
+  @@map("context_states")
+}
+
+// =============================================================================
+// ApiKey — CLI authentication (hashed, prefix-based lookup)
+// =============================================================================
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  teamId     String
+  keyHash    String    // bcrypt hash of the raw key
+  prefix     String    @unique // First 8 chars for lookup (e.g., "xc_a1b2c3d4")
+  label      String    // Human-readable label
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  // Relations
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([prefix])
+  @@index([teamId])
+  @@map("api_keys")
+}

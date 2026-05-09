@@ -1,0 +1,85 @@
+import { db } from "@/lib/db";
+import { z } from "zod";
+import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
+import { getSession } from "@/lib/session";
+
+const conversationSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().optional(),
+  messages: z.array(z.object({
+    role: z.enum(["USER", "ASSISTANT", "SYSTEM", "TOOL"]),
+    content: z.string(),
+    tokenCount: z.number().optional(),
+    cost: z.number().optional(),
+  })).optional(),
+});
+
+export async function POST(request: Request) {
+  try {
+    const session = await getSession();
+    if (!session || !session.teamId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const data = conversationSchema.parse(body);
+
+    const convId = uuidv4();
+    const conversationsColl = db.collection("conversations");
+    const messagesColl = db.collection("messages");
+
+    const messagesToInsert = data.messages || [];
+
+    // 1. Create Context Thread (formerly Conversation)
+    await conversationsColl.insertOne({
+      _id: convId,
+      teamId: session.teamId,
+      title: data.title,
+      description: data.description || "",
+      messageCount: messagesToInsert.length,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // 2. Create Messages if any
+    if (messagesToInsert.length > 0) {
+      const messageDocs = messagesToInsert.map((m, i) => ({
+        _id: uuidv4(),
+        conversationId: convId,
+        role: m.role,
+        content: m.content,
+        tokenCount: m.tokenCount || 0,
+        cost: m.cost || 0,
+        order: i,
+        createdAt: new Date(),
+      }));
+
+      await messagesColl.insertMany(messageDocs);
+    }
+
+    return NextResponse.json({ success: true, conversationId: convId });
+  } catch (error: any) {
+    console.error("Context Thread creation error:", error);
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+}
+
+
+export async function GET(request: Request) {
+  try {
+    const session = await getSession();
+    if (!session || !session.teamId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const conversationsColl = db.collection("conversations");
+    const cursor = conversationsColl.find({ teamId: session.teamId }, { sort: { updatedAt: -1 }, limit: 20 });
+    const conversations = await cursor.toArray();
+
+    return NextResponse.json({ conversations });
+  } catch (error: any) {
+    console.error("Failed to fetch conversations:", error);
+    return NextResponse.json({ error: "Failed to fetch conversations" }, { status: 500 });
+  }
+}

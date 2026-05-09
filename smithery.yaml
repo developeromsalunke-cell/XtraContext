@@ -1,0 +1,25 @@
+# Smithery.ai Configuration for XtraContext
+version: 1
+
+project:
+  name: xtracontext-mcp
+  description: Universal memory layer for architectural AI engineering. Sync context across Claude, Cursor, and Windsurf.
+  package_name: "@xtracontext/mcp"
+
+server:
+  command: npx
+  args: ["@xtracontext/mcp"]
+  env:
+    XTRACONTEXT_API_URL:
+      description: The secure proxy URL (e.g. https://xtracontext.app/api/v1/mcp/proxy)
+      required: true
+    XTRACONTEXT_API_KEY:
+      description: Your XtraContext Access Token (xc_...)
+      required: true
+
+capabilities:
+  tools:
+    - name: search_memory
+      description: Search architectural history
+    - name: log_action
+      description: Save project context
