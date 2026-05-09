@@ -65,6 +65,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["title", "content"],
         },
       },
+      {
+        name: "append_memory",
+        description: "Add a new message or turn to an existing XtraContext thread.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            threadId: {
+              type: "string",
+              description: "The ID of the thread to append to",
+            },
+            role: {
+              type: "string",
+              enum: ["USER", "ASSISTANT", "SYSTEM"],
+              description: "The role of the message author",
+            },
+            content: {
+              type: "string",
+              description: "The text content to append",
+            },
+          },
+          required: ["threadId", "role", "content"],
+        },
+      },
     ],
   };
 });
@@ -121,6 +144,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       return {
         content: [{ type: "text", text: `Successfully saved memory to XtraContext.` }],
+      };
+    }
+
+    if (name === "append_memory") {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "append_message",
+          params: {
+            threadId: (args as any).threadId,
+            message: {
+              role: (args as any).role,
+              content: (args as any).content,
+            }
+          },
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Proxy error: ${response.statusText}`);
+
+      return {
+        content: [{ type: "text", text: `Successfully appended message to thread: ${(args as any).threadId}` }],
       };
     }
 

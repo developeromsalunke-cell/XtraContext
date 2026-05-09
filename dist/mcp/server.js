@@ -5,16 +5,16 @@ const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
 require("dotenv/config");
 // Configuration
-const apiUrl = process.env.CONTEXTVAULT_API_URL;
-const apiKey = process.env.CONTEXTVAULT_API_KEY;
+const apiUrl = process.env.XTRACONTEXT_API_URL;
+const apiKey = process.env.XTRACONTEXT_API_KEY;
 if (!apiUrl || !apiKey) {
-    console.error("Missing CONTEXTVAULT_API_URL or CONTEXTVAULT_API_KEY");
-    console.error("Please generate an Access Token in the ContextVault Dashboard.");
+    console.error("Missing XTRACONTEXT_API_URL or XTRACONTEXT_API_KEY");
+    console.error("Please generate an Access Token in the XtraContext Dashboard.");
     process.exit(1);
 }
 // Initialize MCP Server
 const server = new index_js_1.Server({
-    name: "contextvault-mcp",
+    name: "xtracontext-mcp",
     version: "2.0.0",
 }, {
     capabilities: {
@@ -27,7 +27,7 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
         tools: [
             {
                 name: "search_memory",
-                description: "Search ContextVault for past conversations and architectural decisions.",
+                description: "Search XtraContext for past conversations and architectural decisions.",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -41,7 +41,7 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
             },
             {
                 name: "log_action",
-                description: "Save an important decision or workflow step to ContextVault.",
+                description: "Save an important decision or workflow step to XtraContext.",
                 inputSchema: {
                     type: "object",
                     properties: {
@@ -55,6 +55,29 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => {
                         },
                     },
                     required: ["title", "content"],
+                },
+            },
+            {
+                name: "append_memory",
+                description: "Add a new message or turn to an existing XtraContext thread.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        threadId: {
+                            type: "string",
+                            description: "The ID of the thread to append to",
+                        },
+                        role: {
+                            type: "string",
+                            enum: ["USER", "ASSISTANT", "SYSTEM"],
+                            description: "The role of the message author",
+                        },
+                        content: {
+                            type: "string",
+                            description: "The text content to append",
+                        },
+                    },
+                    required: ["threadId", "role", "content"],
                 },
             },
         ],
@@ -104,7 +127,31 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
             if (!response.ok)
                 throw new Error(`Proxy error: ${response.statusText}`);
             return {
-                content: [{ type: "text", text: `Successfully saved memory to ContextVault.` }],
+                content: [{ type: "text", text: `Successfully saved memory to XtraContext.` }],
+            };
+        }
+        if (name === "append_memory") {
+            const response = await fetch(apiUrl, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    action: "append_message",
+                    params: {
+                        threadId: args.threadId,
+                        message: {
+                            role: args.role,
+                            content: args.content,
+                        }
+                    },
+                }),
+            });
+            if (!response.ok)
+                throw new Error(`Proxy error: ${response.statusText}`);
+            return {
+                content: [{ type: "text", text: `Successfully appended message to thread: ${args.threadId}` }],
             };
         }
         throw new Error("Unknown tool");
@@ -120,7 +167,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
 async function main() {
     const transport = new stdio_js_1.StdioServerTransport();
     await server.connect(transport);
-    console.error("ContextVault Secure MCP Proxy running on stdio");
+    console.error("XtraContext Secure MCP Proxy running on stdio");
 }
 main().catch((error) => {
     console.error("Server error:", error);
