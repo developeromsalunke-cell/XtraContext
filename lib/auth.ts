@@ -51,23 +51,6 @@ export async function authenticateApiKey(
     throw new AuthError("INVALID_API_KEY");
   }
 
-  // Note: Team/User relations in Astra are handled via ID lookups 
-  // For now, we assume team structure is flat or handled at proxy layer
-  const authContext: AuthContext = {
-    userId: apiKey.userId || "system", // Fallback if not linked
-    teamId: apiKey.teamId,
-    role: "DEVELOPER",
-  };
-
-  if (!apiKey) {
-    throw new AuthError("Invalid API key");
-  }
-
-  // Check if the key has been revoked
-  if (apiKey.revokedAt !== null) {
-    throw new AuthError("API key has been revoked");
-  }
-
   // Verify the full key against the stored hash
   const isValid = await compare(rawKey, apiKey.keyHash);
   if (!isValid) {
@@ -84,19 +67,12 @@ export async function authenticateApiKey(
       console.error("[XtraContext] Failed to update API key lastUsedAt:", err);
     });
 
-  // For API key auth, we use the first admin member as the acting user.
-  // In the future, API keys may be scoped to specific users.
-  const firstMember = apiKey.team.members[0];
-  if (!firstMember) {
-    throw new AuthError("Team has no members");
-  }
-
   return {
     teamId: apiKey.teamId,
-    teamPlan: apiKey.team.plan,
-    userId: firstMember.userId,
-    role: firstMember.role,
-    apiKeyId: apiKey.id,
+    teamPlan: apiKey.teamPlan || "FREE",
+    userId: apiKey.userId || "system",
+    role: "DEVELOPER",
+    apiKeyId: String(apiKey._id),
   };
 }
 

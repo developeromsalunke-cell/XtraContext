@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { handleApiError, UnauthorizedError, ValidationError, NotFoundError } from "@/lib/errors";
+import { handleApiError, AuthError, ValidationError, NotFoundError } from "@/lib/errors";
 import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {

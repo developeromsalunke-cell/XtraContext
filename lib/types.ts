@@ -3,7 +3,8 @@
  * Zero `any` types. All shapes are strictly defined.
  */
 
-import type { Plan, Role } from "@/generated/prisma/client";
+export type Plan = "FREE" | "PRO" | "ENTERPRISE";
+export type Role = "ADMIN" | "DEVELOPER" | "VIEWER";
 
 // =============================================================================
 // Auth Context — Returned after successful API key authentication
@@ -17,9 +18,23 @@ export interface AuthContext {
   readonly apiKeyId: string;
 }
 
+export interface ApiErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    status: number;
+  };
+}
+
 // =============================================================================
 // Sync API — Request / Response shapes
 // =============================================================================
+
+export interface RateLimitResult {
+  readonly success: boolean;
+  readonly remaining: number;
+  readonly resetAt: number; // Timestamp in ms
+}
 
 /** POST /api/v1/sync — Request body */
 export interface SyncPushPayload {
@@ -113,6 +128,11 @@ export const PLAN_LIMITS = {
     maxConversations: 100,
   },
   PRO: {
+    maxProjects: Infinity,
+    maxTeamMembers: Infinity,
+    maxConversations: Infinity,
+  },
+  ENTERPRISE: {
     maxProjects: Infinity,
     maxTeamMembers: Infinity,
     maxConversations: Infinity,
