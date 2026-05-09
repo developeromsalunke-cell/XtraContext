@@ -3,8 +3,7 @@
  * Guards route handlers by checking the authenticated user's role.
  */
 
-import type { Role } from "@/generated/prisma/client";
-import type { AuthContext } from "@/lib/types";
+import type { Role, AuthContext } from "@/lib/types";
 import { ForbiddenError } from "@/lib/errors";
 
 /**
