@@ -5,6 +5,10 @@
 
 export type Plan = "FREE" | "PRO" | "ENTERPRISE";
 export type Role = "ADMIN" | "DEVELOPER" | "VIEWER";
+export type AiModel = 
+  | "GPT_4O" | "GPT_4_TURBO" | "GPT_4" | "GPT_3_5_TURBO" 
+  | "CLAUDE_3_OPUS" | "CLAUDE_3_SONNET" | "CLAUDE_3_HAIKU" | "CLAUDE_2"
+  | "GEMINI_PRO" | "GEMINI_ULTRA" | "LLAMA_3" | "MISTRAL_LARGE" | "OTHER";
 
 // =============================================================================
 // Auth Context — Returned after successful API key authentication
