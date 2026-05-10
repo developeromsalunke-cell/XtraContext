@@ -39,7 +39,7 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["@xtracontext/mcp"],
       "env": {
-        "XTRACONTEXT_API_URL": "https://xtracontext.app/api/v1/mcp/proxy",
+        "XTRACONTEXT_API_URL": "https://xtracontext.vercel.app/api/v1/mcp/proxy",
         "XTRACONTEXT_API_KEY": "xc_your_token_here"
       }
     }
@@ -57,6 +57,7 @@ Add a new MCP server in settings:
 
 - **`search_memory`**: Search your architectural history for past decisions, patterns, and code snippets.
 - **`log_action`**: Proactively save important project context or engineering decisions to your universal vault.
+- **`append_memory`**: Add new messages or turns to an existing context thread.
 
 ---
-Built with 🖤 by [XtraContext](https://xtracontext.app)
+Built with 🖤 by [XtraContext](https://xtracontext.vercel.app)

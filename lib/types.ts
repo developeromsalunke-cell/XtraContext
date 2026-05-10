@@ -122,6 +122,40 @@ export interface SearchResponse {
 }
 
 // =============================================================================
+// Teams & Members
+// =============================================================================
+
+export interface TeamMember {
+  readonly userId: string;
+  readonly role: Role;
+  readonly name?: string;
+  readonly email?: string;
+}
+
+export interface Team {
+  readonly _id: string;
+  readonly name: string;
+  readonly slug: string;
+  readonly plan: Plan;
+  readonly members: TeamMember[];
+  readonly createdAt: Date;
+}
+
+// =============================================================================
+// Task Management (Todos)
+// =============================================================================
+
+export interface Todo {
+  readonly _id: string;
+  readonly teamId: string;
+  readonly projectId: string;
+  readonly task: string;
+  readonly completed: boolean;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+
+// =============================================================================
 // Freemium Tier Limits
 // =============================================================================
 

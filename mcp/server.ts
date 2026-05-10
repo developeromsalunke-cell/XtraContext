@@ -34,17 +34,30 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
+        name: "list_threads",
+        description: "List recent architectural threads in your XtraContext team to find specific thread IDs.",
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
         name: "search_memory",
         description: "Search XtraContext for past conversations and architectural decisions.",
         inputSchema: {
           type: "object",
           properties: {
-            query: {
-              type: "string",
-              description: "The topic or keyword to search for",
-            },
+            query: { type: "string", description: "The topic or keyword to search for" },
           },
           required: ["query"],
+        },
+      },
+      {
+        name: "get_project_summary",
+        description: "Retrieve a chronological history of decisions and messages for a specific thread.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            threadId: { type: "string", description: "The ID of the thread to summarize" },
+          },
+          required: ["threadId"],
         },
       },
       {
@@ -53,14 +66,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            title: {
-              type: "string",
-              description: "Short title for the memory",
-            },
-            content: {
-              type: "string",
-              description: "Full details of the memory",
-            },
+            title: { type: "string", description: "Short title for the memory" },
+            content: { type: "string", description: "Full details of the memory" },
           },
           required: ["title", "content"],
         },
@@ -71,21 +78,39 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         inputSchema: {
           type: "object",
           properties: {
-            threadId: {
-              type: "string",
-              description: "The ID of the thread to append to",
-            },
-            role: {
-              type: "string",
-              enum: ["USER", "ASSISTANT", "SYSTEM"],
-              description: "The role of the message author",
-            },
-            content: {
-              type: "string",
-              description: "The text content to append",
-            },
+            threadId: { type: "string", description: "The ID of the thread to append to" },
+            role: { type: "string", enum: ["USER", "ASSISTANT", "SYSTEM"], description: "The role of the message author" },
+            content: { type: "string", description: "The text content to append" },
           },
           required: ["threadId", "role", "content"],
+        },
+      },
+      {
+        name: "add_todo",
+        description: "Add a persistent task or 'next step' to the project memory vault.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            task: { type: "string", description: "The description of the task" },
+            projectId: { type: "string", description: "Optional project/thread ID association" },
+          },
+          required: ["task"],
+        },
+      },
+      {
+        name: "list_todos",
+        description: "View all active and completed tasks for the current team.",
+        inputSchema: { type: "object", properties: {} },
+      },
+      {
+        name: "complete_todo",
+        description: "Mark a specific task as completed in the memory vault.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            todoId: { type: "string", description: "The ID of the todo to complete" },
+          },
+          required: ["todoId"],
         },
       },
     ],
@@ -145,6 +170,57 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return {
         content: [{ type: "text", text: `Successfully saved memory to XtraContext.` }],
       };
+    }
+
+    if (name === "list_threads") {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list_threads", params: {} }),
+      });
+      const { threads } = await response.json();
+      const text = threads.map((t: any) => `[${t._id}] ${t.title} (${t.messageCount || 0} msgs)`).join("\n");
+      return { content: [{ type: "text", text: text || "No threads found." }] };
+    }
+
+    if (name === "get_project_summary") {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get_messages", params: { threadId: (args as any).threadId } }),
+      });
+      const { messages } = await response.json();
+      const text = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n---\n\n");
+      return { content: [{ type: "text", text: text || "This thread is empty." }] };
+    }
+
+    if (name === "add_todo") {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add_todo", params: args }),
+      });
+      return { content: [{ type: "text", text: "Task added to project vault." }] };
+    }
+
+    if (name === "list_todos") {
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list_todos", params: {} }),
+      });
+      const { todos } = await response.json();
+      const text = todos.map((t: any) => `${t.completed ? "[x]" : "[ ]"} ${t.task} (ID: ${t._id})`).join("\n");
+      return { content: [{ type: "text", text: text || "No tasks found." }] };
+    }
+
+    if (name === "complete_todo") {
+      await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete_todo", params: { todoId: (args as any).todoId } }),
+      });
+      return { content: [{ type: "text", text: "Task marked as completed." }] };
     }
 
     if (name === "append_memory") {

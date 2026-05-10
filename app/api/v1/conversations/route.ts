@@ -7,6 +7,7 @@ import { getSession } from "@/lib/session";
 const conversationSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
+  teamId: z.string().optional(),
   messages: z.array(z.object({
     role: z.enum(["USER", "ASSISTANT", "SYSTEM", "TOOL"]),
     content: z.string(),
@@ -18,7 +19,7 @@ const conversationSchema = z.object({
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    if (!session || !session.teamId) {
+    if (!session || !session.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -30,11 +31,16 @@ export async function POST(request: Request) {
     const messagesColl = db.collection("messages");
 
     const messagesToInsert = data.messages || [];
+    const targetTeamId = data.teamId || session.teamId;
+
+    if (!targetTeamId) {
+      return NextResponse.json({ error: "No team assigned" }, { status: 400 });
+    }
 
     // 1. Create Context Thread (formerly Conversation)
     await conversationsColl.insertOne({
       _id: convId,
-      teamId: session.teamId,
+      teamId: targetTeamId,
       title: data.title,
       description: data.description || "",
       messageCount: messagesToInsert.length,
@@ -69,13 +75,32 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const session = await getSession();
-    if (!session || !session.teamId) {
+    if (!session || !session.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userId = session.userId;
+    const teamsColl = db.collection("teams");
     const conversationsColl = db.collection("conversations");
-    const cursor = conversationsColl.find({ teamId: session.teamId }, { sort: { updatedAt: -1 }, limit: 20 });
-    const conversations = await cursor.toArray();
+
+    // 1. Find all teams the user is a member of
+    const allTeams = await teamsColl.find({}).toArray();
+    const userTeamIds = allTeams
+      .filter(team => team.members?.some((m: any) => m.userId === userId))
+      .map(team => team._id);
+
+    if (userTeamIds.length === 0) {
+      return NextResponse.json({ conversations: [] });
+    }
+
+    console.log(`[Conversations API] Fetching threads for ${userTeamIds.length} teams`);
+
+    // 2. Fetch conversations for all those teams
+    // Astra DB Data API supports $in operator
+    const conversations = await conversationsColl.find(
+      { teamId: { $in: userTeamIds } }, 
+      { sort: { updatedAt: -1 }, limit: 50 }
+    ).toArray();
 
     return NextResponse.json({ conversations });
   } catch (error: any) {

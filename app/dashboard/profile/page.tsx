@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import DashboardSidebar from "@/components/DashboardSidebar";
 
 export default function ProfilePage() {
   const profileData = {
@@ -14,74 +15,80 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-12 bg-noir-grid">
-      <div className="max-w-4xl mx-auto">
-        <header className="mb-20">
-          <Link href="/dashboard" className="mono-label text-foreground/40 hover:text-foreground transition-colors mb-8 inline-block uppercase tracking-widest text-[10px]">
-            &larr; Return to Hub
-          </Link>
-          <h1 className="text-6xl font-heading font-black uppercase tracking-tighter mb-4">
-            Identity Fragment
-          </h1>
-          <p className="mono-label text-foreground/40 uppercase tracking-[0.3em] text-xs">
-            User Metadata & Architectural Standing
-          </p>
-        </header>
+    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black">
+      <div className="flex h-screen overflow-hidden">
+        <DashboardSidebar />
 
-        <div className="border border-foreground/10 bg-background noir-card overflow-hidden">
-          {/* Hero Section */}
-          <div className="p-16 border-b border-foreground/10 flex items-center gap-16">
-            <div className="w-32 h-32 bg-foreground flex items-center justify-center grayscale">
-              <span className="text-4xl font-heading font-black text-background">AD</span>
-            </div>
-            <div>
-              <h2 className="text-4xl font-heading font-black uppercase tracking-tight mb-2">{profileData.name}</h2>
-              <div className="flex items-center gap-4">
-                <span className="mono-label px-3 py-1 bg-foreground text-background text-[10px] font-bold uppercase tracking-widest">{profileData.role}</span>
-                <span className="mono-label text-foreground/30 text-[10px] uppercase tracking-widest">{profileData.team}</span>
+        <main className="flex-1 flex flex-col min-w-0 bg-black overflow-y-auto p-12 custom-scrollbar">
+          <div className="max-w-4xl mx-auto w-full">
+            <header className="mb-16">
+              <Link href="/dashboard" className="text-[10px] font-bold text-gray-500 uppercase tracking-widest font-mono hover:text-white transition-colors flex items-center gap-2 mb-10">
+                &larr; Return to Hub
+              </Link>
+              <h1 className="text-4xl font-bold uppercase tracking-tighter mb-4">
+                Identity Fragment
+              </h1>
+              <p className="text-gray-600 text-[11px] font-mono font-bold tracking-widest uppercase">
+                User Metadata & Architectural Standing
+              </p>
+            </header>
+
+            <div className="card-noir overflow-hidden p-0">
+              {/* Hero Section */}
+              <div className="p-12 border-b border-gray-700 flex items-center gap-12 bg-gray-900">
+                <div className="w-24 h-24 rounded bg-white flex items-center justify-center text-black font-black text-3xl font-heading">
+                  AD
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold uppercase tracking-tighter mb-2">{profileData.name}</h2>
+                  <div className="flex items-center gap-4">
+                    <span className="text-[11px] font-mono font-bold border border-white/20 px-3 py-1 rounded text-gray-400 uppercase tracking-widest">{profileData.role}</span>
+                    <span className="text-[11px] font-mono font-bold text-gray-600 uppercase tracking-widest">{profileData.team}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 border-b border-gray-700">
+                {[
+                  { label: "Active Threads", value: profileData.activeThreads },
+                  { label: "Total Commit Logs", value: profileData.totalLogs.toLocaleString() },
+                  { label: "Temporal Standing", value: profileData.joined },
+                ].map((stat, i) => (
+                  <div key={stat.label} className={`p-10 text-center ${i !== 2 ? 'border-r border-gray-700' : ''}`}>
+                    <p className="text-[10px] font-mono font-bold text-gray-600 uppercase tracking-widest mb-4">{stat.label}</p>
+                    <p className="text-2xl font-bold uppercase">{stat.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Detail Rows */}
+              <div className="p-12 space-y-8 bg-black">
+                 <div className="flex items-center justify-between pb-6 border-b border-gray-800">
+                    <span className="text-[11px] font-mono font-bold text-gray-600 uppercase tracking-widest">Email Designation</span>
+                    <span className="text-sm font-bold tracking-tight text-white">{profileData.email}</span>
+                 </div>
+                 <div className="flex items-center justify-between pb-6 border-b border-gray-800">
+                    <span className="text-[11px] font-mono font-bold text-gray-600 uppercase tracking-widest">System Role</span>
+                    <span className="text-sm font-bold tracking-tight text-white">{profileData.role}</span>
+                 </div>
+                 <div className="flex items-center justify-between pb-6 border-b border-gray-800">
+                    <span className="text-[11px] font-mono font-bold text-gray-600 uppercase tracking-widest">Security Clearance</span>
+                    <span className="text-[10px] font-bold tracking-widest text-white uppercase bg-gray-800 px-3 py-1 rounded border border-gray-700">LEVEL 4 / ALPHA</span>
+                 </div>
+              </div>
+
+              <div className="p-10 bg-gray-900 flex justify-end gap-4 border-t border-gray-700">
+                 <button className="h-10 px-6 border border-gray-600 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:border-white hover:text-white transition-all rounded">
+                   Modify Credentials
+                 </button>
+                 <button className="h-10 px-6 bg-white text-black font-bold uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all rounded">
+                   Update Identity
+                 </button>
               </div>
             </div>
           </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-foreground/10">
-            {[
-              { label: "Active Threads", value: profileData.activeThreads },
-              { label: "Total Commit Logs", value: profileData.totalLogs.toLocaleString() },
-              { label: "Temporal Standing", value: profileData.joined },
-            ].map((stat) => (
-              <div key={stat.label} className="bg-background p-12 text-center">
-                <p className="mono-label text-foreground/30 text-[10px] uppercase tracking-[0.2em] mb-4">{stat.label}</p>
-                <p className="text-3xl font-heading font-black uppercase">{stat.value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Detail Rows */}
-          <div className="p-12 space-y-8">
-             <div className="flex items-center justify-between py-6 border-b border-foreground/5">
-                <span className="mono-label text-foreground/40 uppercase text-[10px] tracking-widest">Email Designation</span>
-                <span className="font-heading font-bold uppercase tracking-wider">{profileData.email}</span>
-             </div>
-             <div className="flex items-center justify-between py-6 border-b border-foreground/5">
-                <span className="mono-label text-foreground/40 uppercase text-[10px] tracking-widest">System Role</span>
-                <span className="font-heading font-bold uppercase tracking-wider">{profileData.role}</span>
-             </div>
-             <div className="flex items-center justify-between py-6 border-b border-foreground/5">
-                <span className="mono-label text-foreground/40 uppercase text-[10px] tracking-widest">Security Clearance</span>
-                <span className="font-heading font-bold uppercase tracking-wider text-green-500/80">LEVEL 4 / ALPHA</span>
-             </div>
-          </div>
-
-          <div className="p-12 bg-foreground/5 flex justify-end gap-6">
-             <button className="px-10 py-4 border border-foreground/10 mono-label text-foreground/40 uppercase text-[10px] tracking-widest hover:text-foreground transition-all">
-               Edit Profile
-             </button>
-             <button className="px-10 py-4 bg-foreground text-background font-black uppercase text-[10px] tracking-widest hover:invert transition-all">
-               Update Identity
-             </button>
-          </div>
-        </div>
+        </main>
       </div>
     </div>
   );

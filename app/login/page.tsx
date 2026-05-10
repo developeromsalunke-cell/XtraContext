@@ -33,77 +33,100 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden p-6 font-sans">
-      <div className="absolute inset-0 bg-grid opacity-10 pointer-events-none" />
-      <div className="absolute top-1/4 -right-20 w-96 h-96 bg-brand-primary/20 rounded-full blur-[120px] animate-pulse-slow" />
-      <div className="absolute bottom-1/4 -left-20 w-96 h-96 bg-brand-secondary/20 rounded-full blur-[120px] animate-pulse-slow delay-1000" />
-
-      <div className="w-full max-w-md relative animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center shadow-lg group-hover:scale-110 transition-all">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+    <div className="min-h-screen flex flex-col md:flex-row bg-black text-white font-sans selection:bg-white selection:text-black">
+      {/* Left Section - Branding */}
+      <div className="md:w-1/2 bg-black border-r border-gray-700 flex flex-col items-center justify-center p-12 text-center relative overflow-hidden blueprint-grid">
+        <div className="relative z-10">
+          <Link href="/" className="inline-flex items-center gap-4 mb-10 group">
+            <div className="w-12 h-12 bg-white flex items-center justify-center rounded transition-transform group-hover:rotate-6">
+              <span className="text-black font-black text-2xl font-heading">X</span>
             </div>
-            <span className="text-2xl font-bold tracking-tight">ContextVault</span>
+            <span className="text-4xl font-heading font-black tracking-tight uppercase">XtraContext</span>
           </Link>
-          <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
-          <p className="text-foreground/40 text-sm">Resume your AI memory session.</p>
+          <h2 className="text-xl font-medium text-gray-400 mb-2">Your AI's Long-Term Memory</h2>
+          <p className="text-sm text-gray-600 uppercase tracking-[0.2em] font-mono font-bold">Never lose context between AI conversations</p>
         </div>
+      </div>
 
-        <div className="glass p-8 rounded-[32px] border border-white/5 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Right Section - Form */}
+      <div className="md:w-1/2 bg-gray-900 flex items-center justify-center p-12">
+        <div className="w-full max-w-sm space-y-12">
+          <div className="space-y-4">
+            <h1 className="text-3xl font-bold tracking-tight">Welcome Back</h1>
+            <p className="text-gray-400 text-sm">Sign in to access your memory vault.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-8">
             {error && (
-              <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm text-center">
+              <div className="p-4 rounded-md bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold uppercase tracking-widest text-center">
                 {error}
               </div>
             )}
             
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Email Address</label>
+            <div className="space-y-3">
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono">Email</label>
               <input
                 required
                 type="email"
-                placeholder="name@company.com"
-                className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:outline-none focus:border-brand-primary transition-all text-sm"
+                placeholder="NAME@ENGINEER.COM"
+                className="input-noir w-full"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-center ml-1">
-                <label className="text-xs font-bold uppercase tracking-widest text-foreground/40">Password</label>
-                <Link href="#" className="text-[10px] text-brand-primary hover:underline">Forgot password?</Link>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono">Password</label>
+                <Link href="#" className="text-[10px] text-gray-500 hover:text-white transition-colors underline">Forgot?</Link>
               </div>
               <input
                 required
                 type="password"
                 placeholder="••••••••"
-                className="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 focus:outline-none focus:border-brand-primary transition-all text-sm"
+                className="input-noir w-full"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
             </div>
 
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+               <input type="checkbox" className="w-3 h-3 bg-gray-800 border-gray-600 rounded focus:ring-white" />
+               <span>Remember me for 30 days</span>
+            </div>
+
             <button
               disabled={loading}
               type="submit"
-              className="w-full py-4 rounded-2xl bg-brand-primary text-white font-bold hover:bg-brand-primary/90 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 shadow-xl shadow-brand-primary/20"
+              className="btn-primary-noir w-full uppercase tracking-[0.2em] text-xs"
             >
-              {loading ? "Authenticating..." : "Log In"}
+              {loading ? "Authenticating..." : "Sign In"}
             </button>
           </form>
 
-          <div className="mt-8 text-center">
-            <p className="text-sm text-foreground/40">
-              New to ContextVault?{" "}
-              <Link href="/signup" className="text-brand-primary font-bold hover:underline">
-                Create account
-              </Link>
-            </p>
+          <div className="space-y-6">
+            <div className="relative flex items-center">
+              <div className="flex-grow border-t border-gray-700"></div>
+              <span className="flex-shrink mx-4 text-[10px] font-bold text-gray-600 uppercase tracking-widest">or</span>
+              <div className="flex-grow border-t border-gray-700"></div>
+            </div>
+
+            <div className="space-y-3">
+               <button className="btn-secondary-noir w-full text-xs uppercase tracking-widest flex items-center justify-center gap-3">
+                  <span>🔑</span> Continue with GitHub
+               </button>
+               <button className="btn-secondary-noir w-full text-xs uppercase tracking-widest flex items-center justify-center gap-3">
+                  <span>🔑</span> Continue with Google
+               </button>
+            </div>
           </div>
+
+          <p className="text-center text-sm text-gray-500">
+            Don't have an account?{" "}
+            <Link href="/signup" className="text-white font-bold hover:underline">
+              Sign Up
+            </Link>
+          </p>
         </div>
       </div>
     </div>

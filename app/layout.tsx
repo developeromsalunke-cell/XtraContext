@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   description: "Capture, search, and inject AI conversation context across all models and platforms.",
 };
 
+import CommandMenu from "@/components/CommandMenu";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +35,7 @@ export default function RootLayout({
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-white/20 selection:text-white">
+        <CommandMenu />
         {children}
       </body>
     </html>

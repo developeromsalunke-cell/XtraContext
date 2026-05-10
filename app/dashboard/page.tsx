@@ -1,34 +1,51 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import DashboardSidebar from "@/components/DashboardSidebar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function Dashboard() {
-  const router = useRouter();
   const [conversations, setConversations] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   
-  const [newThread, setNewThread] = useState({
-    title: "",
-    description: "",
-  });
+  // New Thread Form State
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  
+  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchConversations();
+    fetchData();
   }, []);
 
-  const fetchConversations = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch("/api/v1/conversations");
-      if (res.ok) {
-        const data = await res.json();
+      const [convRes, teamsRes] = await Promise.all([
+        fetch("/api/v1/conversations"),
+        fetch("/api/v1/teams")
+      ]);
+      
+      if (convRes.ok) {
+        const data = await convRes.json();
         setConversations(data.conversations || []);
       }
+      
+      if (teamsRes.ok) {
+        const data = await teamsRes.json();
+        setTeams(data.teams || []);
+        if (data.teams.length > 0) {
+          setSelectedTeamId(data.teams[0]._id);
+        }
+      }
     } catch (error) {
-      console.error("Failed to fetch threads", error);
+      console.error("Failed to fetch dashboard data", error);
     } finally {
       setLoading(false);
     }
@@ -36,220 +53,262 @@ export default function Dashboard() {
 
   const handleCreateThread = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title || !selectedTeamId) return;
+    setSubmitting(true);
     try {
       const res = await fetch("/api/v1/conversations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newThread),
+        body: JSON.stringify({ title, description, teamId: selectedTeamId }),
       });
       if (res.ok) {
         const data = await res.json();
-        setIsModalOpen(false);
         router.push(`/dashboard/thread/${data.conversationId}`);
       }
     } catch (error) {
       console.error("Failed to create thread", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const filteredThreads = conversations.filter(t => 
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const handleCreateTeamInline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/v1/teams", {
+        method: "POST",
+        body: JSON.stringify({ name: newTeamName }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Refresh teams and select the new one
+        const teamsRes = await fetch("/api/v1/teams");
+        if (teamsRes.ok) {
+          const teamsData = await teamsRes.json();
+          setTeams(teamsData.teams);
+          setSelectedTeamId(data.team._id);
+          setIsCreatingTeam(false);
+          setNewTeamName("");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to create team", error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-white/20 bg-noir-grid">
-      <div className="flex h-screen relative z-10">
-        {/* Sidebar */}
-        <aside className="w-72 border-r border-foreground/10 bg-background flex flex-col p-8">
-          <div className="flex items-center gap-4 mb-16">
-            <div className="w-10 h-10 bg-foreground flex items-center justify-center">
-              <span className="text-background font-black text-lg font-heading">CV</span>
-            </div>
-            <span className="font-heading font-black text-2xl tracking-tighter uppercase">Vault</span>
-          </div>
+    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black">
+      <div className="flex h-screen overflow-hidden">
+        <DashboardSidebar />
 
-          <nav className="flex-1 space-y-1">
-            {[
-              { name: "Active Threads", icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", active: true, href: "/dashboard" },
-              { name: "Context Logs", icon: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z", active: false, href: "#" },
-              { name: "Access Tokens", icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z", active: false, href: "/dashboard/settings/keys" },
-              { name: "Config", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z", active: false, href: "/dashboard/settings" },
-            ].map((item) => (
-              <Link href={item.href} key={item.name} className={`w-full flex items-center gap-4 px-4 py-4 transition-all text-left group ${item.active ? 'bg-foreground text-background' : 'text-foreground/40 hover:text-foreground hover:bg-foreground/5'}`}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
-                </svg>
-                <span className="text-sm font-medium uppercase tracking-wider">{item.name}</span>
-              </Link>
-            ))}
-          </nav>
-
-          <Link href="/dashboard/profile" className="mt-auto pt-8 border-t border-foreground/10 flex items-center gap-4 group cursor-pointer">
-            <div className="w-10 h-10 border border-foreground/20 flex items-center justify-center grayscale group-hover:grayscale-0 transition-all">
-              <div className="w-6 h-6 bg-foreground/10" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-black uppercase tracking-widest text-foreground group-hover:text-foreground/80 transition-colors">Aiden Dev</span>
-              <span className="text-[10px] mono-label text-foreground/40 uppercase">Architect Plan</span>
-            </div>
-          </Link>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 flex flex-col min-w-0">
-          <header className="h-24 border-b border-foreground/10 flex items-center justify-between px-12 bg-background">
-            <div className="flex-1 max-w-2xl relative">
-              <svg className="absolute left-0 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input 
-                type="text" 
-                placeholder="SEARCH ARCHIVE..." 
-                className="w-full bg-transparent py-4 pl-10 pr-4 text-sm font-mono focus:outline-none placeholder:text-foreground/20 uppercase tracking-widest"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-8">
-              <button className="text-foreground/30 hover:text-foreground transition-colors">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-              </button>
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                className="bg-foreground text-background px-8 py-3 font-black text-xs uppercase tracking-[0.2em] hover:bg-foreground/90 transition-all flex items-center gap-3"
-              >
-                <span>Initialize Thread</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </button>
-            </div>
-          </header>
-
-          <div className="flex-1 overflow-y-auto p-12 bg-background">
-            <div className="flex items-end justify-between mb-16">
+        <main className="flex-1 flex flex-col min-w-0 bg-black overflow-y-auto p-12 custom-scrollbar">
+          <div className="max-w-6xl mx-auto w-full">
+            <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
               <div>
-                <h2 className="text-5xl font-heading font-black tracking-tighter uppercase mb-2">Workspace</h2>
-                <div className="h-1 w-24 bg-foreground" />
+                <h1 className="text-5xl font-black tracking-tighter uppercase mb-4">Memory Vault</h1>
+                <p className="text-gray-500 text-[11px] font-mono font-bold tracking-widest uppercase">Central Intelligence & Context Management</p>
               </div>
-              <div className="flex items-center gap-6 mono-label text-foreground/40">
-                <span className="text-foreground font-black border-b-2 border-foreground pb-1">All Threads</span>
-                <span className="hover:text-foreground transition-colors cursor-pointer pb-1">Pinned</span>
-                <span className="hover:text-foreground transition-colors cursor-pointer pb-1">Archived</span>
-              </div>
-            </div>
 
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1">
-                {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-64 border border-foreground/10 bg-foreground/[0.02] animate-pulse" />)}
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="h-12 px-8 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  + New Thread
+                </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-foreground/10 border border-foreground/10">
-                {filteredThreads.length === 0 ? (
-                  <div className="col-span-full py-40 text-center bg-background">
-                    <h3 className="text-2xl font-heading font-black uppercase mb-4 opacity-10">Void</h3>
-                    <p className="text-xs mono-label text-foreground/30">No memory fragments found in this sector.</p>
+            </header>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+               {/* Recent Threads */}
+               <div className="lg:col-span-8 space-y-6">
+                  <div className="flex items-center justify-between mb-4">
+                     <h2 className="text-[11px] font-mono font-bold text-gray-500 uppercase tracking-widest">Recent Activity</h2>
+                     <Link href="/dashboard/conversations" className="text-[10px] font-bold text-gray-600 hover:text-white uppercase tracking-widest transition-colors">View All &rarr;</Link>
                   </div>
-                ) : (
-                  filteredThreads.map((thread) => (
-                    <Link href={`/dashboard/thread/${thread._id || thread.id}`} key={thread._id || thread.id} className="block group">
-                      <div className="h-64 p-10 bg-background hover:bg-foreground/[0.02] transition-all flex flex-col">
-                        <div className="flex items-start justify-between mb-8">
-                          <span className="mono-label px-3 py-1 border border-foreground/10 text-foreground/40 group-hover:border-foreground/30 transition-all">
-                            ID: {(thread._id || thread.id).slice(0, 8)}
-                          </span>
-                          <div className="w-2 h-2 bg-foreground" />
+                  
+                  {loading ? (
+                    Array(4).fill(0).map((_, i) => (
+                      <div key={i} className="h-24 bg-gray-900/50 border border-gray-800 rounded-lg animate-pulse" />
+                    ))
+                  ) : conversations.length === 0 ? (
+                    <div className="py-24 text-center border border-dashed border-gray-800 rounded-lg">
+                       <p className="text-[11px] font-mono text-gray-600 uppercase tracking-widest font-bold">No context threads found.</p>
+                    </div>
+                  ) : (
+                    conversations.map((conv) => (
+                      <Link 
+                        key={conv._id} 
+                        href={`/dashboard/thread/${conv._id}`}
+                        className="block card-noir hover:border-white transition-all group"
+                      >
+                        <div className="flex items-center justify-between">
+                           <div>
+                              <h3 className="text-lg font-bold uppercase tracking-tight group-hover:text-white mb-1">{conv.title}</h3>
+                              <p className="text-[10px] font-mono text-gray-500 font-bold uppercase tracking-widest">
+                                 {conv.model || "Unknown Model"} • {new Date(conv.updatedAt).toLocaleDateString()}
+                              </p>
+                           </div>
+                           <span className="text-gray-700 group-hover:text-white transition-colors">→</span>
                         </div>
+                      </Link>
+                    ))
+                  )}
+               </div>
 
-                        <h3 className="text-xl font-heading font-black uppercase mb-3 line-clamp-1 group-hover:tracking-wider transition-all">{thread.title}</h3>
-                        <p className="text-sm text-foreground/40 line-clamp-2 mb-auto leading-relaxed">
-                          {thread.description || "NO ARCHITECTURAL NOTES PROVIDED."}
-                        </p>
-
-                        <div className="flex items-center justify-between pt-8 border-t border-foreground/5 mt-auto">
-                          <span className="text-[10px] mono-label text-foreground/20 italic">
-                            {new Date(thread.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </span>
-                          <div className="flex items-center gap-4">
-                            <span className="text-[10px] font-black text-foreground">{thread.messageCount || 0} LOGS</span>
-                            <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                            </svg>
+               {/* Right Sidebar Stats */}
+               <div className="lg:col-span-4 space-y-8">
+                  <section className="card-noir border-gray-800 bg-gray-950">
+                     <h3 className="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-widest mb-6">Vault Metrics</h3>
+                     <div className="space-y-6">
+                        <div>
+                           <p className="text-2xl font-bold tracking-tighter uppercase">{conversations.length}</p>
+                           <p className="text-[10px] font-mono text-gray-600 font-bold uppercase tracking-widest">Total Threads</p>
+                        </div>
+                        <div>
+                           <p className="text-2xl font-bold tracking-tighter uppercase">{teams.length}</p>
+                           <p className="text-[10px] font-mono text-gray-600 font-bold uppercase tracking-widest">Active Workspaces</p>
+                        </div>
+                     </div>
+                  </section>
+                  
+                  <section className="card-noir border-gray-800">
+                     <h3 className="text-[11px] font-mono font-bold text-gray-400 uppercase tracking-widest mb-6">Active Teams</h3>
+                     <div className="space-y-3">
+                        {teams.map(team => (
+                          <div key={team._id} className="flex items-center justify-between group cursor-pointer">
+                             <span className="text-[11px] font-bold text-gray-500 group-hover:text-white uppercase transition-colors">{team.name}</span>
+                             <span className="text-[9px] font-mono text-gray-700">{team.members?.length}m</span>
                           </div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))
-                )}
-              </div>
-            )}
+                        ))}
+                     </div>
+                  </section>
+               </div>
+            </div>
           </div>
         </main>
       </div>
 
-      {/* Noir Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-background/95 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-xl border border-foreground bg-background shadow-[20px_20px_0px_0px_rgba(0,0,0,0.1)] overflow-hidden">
-            <div className="p-12">
-              <div className="flex items-start justify-between mb-12">
-                <div>
-                  <h2 className="text-4xl font-heading font-black uppercase tracking-tighter">Initialize</h2>
-                  <div className="h-1 w-12 bg-foreground mt-2" />
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="text-foreground/20 hover:text-foreground transition-all">
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+      {/* NEW THREAD MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+           <div className="w-full max-w-xl card-noir bg-gray-900 border-gray-700 p-10 space-y-8 animate-in fade-in zoom-in duration-200">
+              
+              {!isCreatingTeam ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-3xl font-bold uppercase tracking-tight">Initiate Thread</h2>
+                    <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white">&times;</button>
+                  </div>
 
-              <form onSubmit={handleCreateThread} className="space-y-10">
-                <div className="space-y-4">
-                  <label className="mono-label text-foreground/40 block">Designation / Title</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="ENTER THREAD NAME..." 
-                    className="w-full bg-transparent border-b-2 border-foreground/10 py-4 text-lg focus:outline-none focus:border-foreground transition-all font-heading font-bold uppercase tracking-widest"
-                    value={newThread.title}
-                    onChange={(e) => setNewThread({...newThread, title: e.target.value})}
-                  />
-                </div>
+                  <form onSubmit={handleCreateThread} className="space-y-6">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">Assign to Workspace</label>
+                       <div className="flex gap-2">
+                          <select 
+                            required
+                            className="input-noir flex-1 uppercase font-mono text-xs appearance-none"
+                            value={selectedTeamId}
+                            onChange={(e) => setSelectedTeamId(e.target.value)}
+                          >
+                             {teams.length === 0 && <option value="">No teams available</option>}
+                             {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                          </select>
+                          <button 
+                            type="button"
+                            onClick={() => setIsCreatingTeam(true)}
+                            className="px-4 bg-gray-800 text-[10px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-700"
+                          >
+                            + New Team
+                          </button>
+                       </div>
+                    </div>
 
-                <div className="space-y-4">
-                  <label className="mono-label text-foreground/40 block">Architectural Objective</label>
-                  <textarea 
-                    rows={3}
-                    placeholder="DEFINE THE CONTEXTUAL GOAL..." 
-                    className="w-full bg-transparent border-b-2 border-foreground/10 py-4 text-sm focus:outline-none focus:border-foreground transition-all resize-none leading-relaxed"
-                    value={newThread.description}
-                    onChange={(e) => setNewThread({...newThread, description: e.target.value})}
-                  />
-                </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">Thread Title</label>
+                       <input
+                          autoFocus
+                          required
+                          type="text"
+                          placeholder="E.G. OAUTH IMPLEMENTATION"
+                          className="input-noir w-full uppercase font-mono text-xs"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                       />
+                    </div>
 
-                <div className="flex flex-col gap-4 pt-6">
-                  <button 
-                    type="submit" 
-                    className="w-full bg-foreground text-background py-5 font-black uppercase tracking-[0.3em] text-sm hover:invert transition-all"
-                  >
-                    Commit Thread
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsModalOpen(false)}
-                    className="w-full border border-foreground/10 py-4 mono-label text-foreground/40 hover:text-foreground transition-all"
-                  >
-                    Abort
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">Abstract (Optional)</label>
+                       <textarea
+                          placeholder="Brief description of the context being captured..."
+                          className="input-noir w-full font-sans text-sm h-24 resize-none"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                       />
+                    </div>
+
+                    <div className="flex gap-4 pt-4">
+                       <button 
+                         type="button"
+                         onClick={() => setShowModal(false)}
+                         className="flex-1 h-12 border border-gray-700 text-white text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-800 transition-colors"
+                       >
+                         Cancel
+                       </button>
+                       <button 
+                         disabled={submitting || (teams.length === 0 && !isCreatingTeam)}
+                         type="submit"
+                         className="flex-1 h-12 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+                       >
+                         {submitting ? "Processing..." : "Create Thread"}
+                       </button>
+                    </div>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold uppercase tracking-tight">Create New Team</h2>
+                    <p className="text-gray-400 text-sm">Organize your memory threads into a new workspace.</p>
+                  </div>
+
+                  <form onSubmit={handleCreateTeamInline} className="space-y-6">
+                    <div className="space-y-2">
+                       <label className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">Team Name</label>
+                       <input
+                          autoFocus
+                          required
+                          type="text"
+                          placeholder="E.G. ENGINEERING CORE"
+                          className="input-noir w-full uppercase font-mono text-xs"
+                          value={newTeamName}
+                          onChange={(e) => setNewTeamName(e.target.value)}
+                       />
+                    </div>
+
+                    <div className="flex gap-4 pt-4">
+                       <button 
+                         type="button"
+                         onClick={() => setIsCreatingTeam(false)}
+                         className="flex-1 h-12 border border-gray-700 text-white text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-800 transition-colors"
+                       >
+                         Back
+                       </button>
+                       <button 
+                         disabled={submitting}
+                         type="submit"
+                         className="flex-1 h-12 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+                       >
+                         {submitting ? "Creating..." : "Confirm Team"}
+                       </button>
+                    </div>
+                  </form>
+                </>
+              )}
+           </div>
         </div>
       )}
     </div>

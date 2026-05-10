@@ -10,25 +10,31 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q");
+    const query = searchParams.get("q") || "";
 
     const conversationsColl = db.collection("conversations");
     
-    // Simple filter for demo. In production, use Astra Vector Search!
+    // We'll perform a broad search for the team's threads
+    // In a production scenario with large data, we would use Vector Search ($vector)
     const filter: any = { teamId: session.teamId };
-    if (query) {
-      // Basic prefix/exact match simulation as Data API doesn't support $regex in all tiers
-      // We'll search by title
-      filter.title = { $exists: true };
-    }
+    
+    // Fetch recent threads to filter client-side or use prefix matching if supported
+    // For now, we'll fetch the most recent 100 threads and filter by title/description
+    const conversations = await conversationsColl.find(filter, { 
+      sort: { updatedAt: -1 },
+      limit: 100 
+    }).toArray();
 
-    const conversations = await conversationsColl.find(filter, { limit: 10 }).toArray();
+    const filteredResults = conversations.filter(c => {
+      const searchStr = `${c.title} ${c.description} ${c.model}`.toLowerCase();
+      return searchStr.includes(query.toLowerCase());
+    });
 
     return NextResponse.json({ 
-      results: conversations.map(c => ({
+      results: filteredResults.slice(0, 10).map(c => ({
         id: c._id,
         title: c.title,
-        platform: c.platform,
+        description: c.description,
         model: c.model,
         updatedAt: c.updatedAt
       }))
@@ -38,4 +44,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
   }
 }
-

@@ -96,14 +96,14 @@ export async function hashApiKey(rawKey: string): Promise<string> {
  * Creates a new API key in the database for a team.
  * @returns The raw API key (to be shown once to the user)
  */
-export async function createApiKey(teamId: string, label: string): Promise<string> {
+export async function createApiKey(teamId: string, userId: string, label: string): Promise<string> {
   const rawKey = generateApiKey();
   const keyHash = await hashApiKey(rawKey);
   const prefix = rawKey.substring(0, KEY_PREFIX_LENGTH);
-  const KEY_PREFIX_LEN = 12; // Ensure consistency
 
   await db.collection("api_keys").insertOne({
     teamId,
+    userId,
     keyHash,
     prefix,
     label,
