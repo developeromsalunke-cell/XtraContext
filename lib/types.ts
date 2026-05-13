@@ -20,6 +20,7 @@ export interface AuthContext {
   readonly userId: string;
   readonly role: Role;
   readonly apiKeyId: string;
+  readonly apiKeyPrefix: string;
 }
 
 export interface ApiErrorResponse {

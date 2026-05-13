@@ -149,6 +149,9 @@ export default function TeamSettingsPage() {
                 </div>
               </section>
 
+              {/* Pending Invitations */}
+              <PendingInvitationsSection teamId={id as string} />
+
               {/* Danger Zone */}
               <section className="card-noir border-red-500/20 bg-red-500/5">
                  <h2 className="text-[11px] font-mono font-bold text-red-500/60 uppercase tracking-widest mb-8">Danger Zone</h2>
@@ -169,3 +172,113 @@ export default function TeamSettingsPage() {
     </div>
   );
 }
+
+function PendingInvitationsSection({ teamId }: { teamId: string }) {
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
+
+  const fetchInvitations = async () => {
+    try {
+      const res = await fetch(`/api/v1/teams/invitations?teamId=${teamId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setInvitations(data.invitations || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch pending invitations", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvitations();
+  }, [teamId]);
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setInviting(true);
+    try {
+      const res = await fetch("/api/v1/teams/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teamId, email, role: "DEVELOPER" })
+      });
+      if (res.ok) {
+        setEmail("");
+        fetchInvitations();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to send invitation");
+      }
+    } catch (err) {
+      console.error("Failed to send invitation", err);
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    try {
+      const res = await fetch(`/api/v1/teams/invitations/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        fetchInvitations();
+      }
+    } catch (err) {
+      console.error("Failed to cancel invitation", err);
+    }
+  };
+
+  return (
+    <section className="card-noir border-gray-700 bg-gray-900">
+      <h2 className="text-[11px] font-mono font-bold text-gray-300 uppercase tracking-widest mb-8">Pending Invitations</h2>
+      
+      <form onSubmit={handleInvite} className="mb-10 flex gap-3">
+        <input
+          required
+          type="email"
+          placeholder="colleague@company.com"
+          className="input-noir flex-1 font-mono text-xs"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <button
+          disabled={inviting}
+          type="submit"
+          className="h-10 px-6 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors"
+        >
+          {inviting ? "Sending..." : "Invite"}
+        </button>
+      </form>
+
+      <div className="divide-y divide-gray-800">
+        {loading ? (
+          <p className="text-[10px] font-mono text-gray-600 uppercase py-4">Checking logs...</p>
+        ) : invitations.length === 0 ? (
+          <p className="text-[10px] font-mono text-gray-600 uppercase py-4">No pending invitations</p>
+        ) : (
+          invitations.map((inv) => (
+            <div key={inv._id} className="py-4 flex items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-bold text-gray-300 uppercase tracking-tight">{inv.inviteeEmail}</span>
+                <span className="text-[10px] font-mono text-gray-600 uppercase tracking-widest font-bold">Role: {inv.role}</span>
+              </div>
+              <button 
+                onClick={() => handleCancel(inv._id)}
+                className="text-[10px] font-bold text-gray-500 hover:text-red-400 uppercase tracking-widest transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+

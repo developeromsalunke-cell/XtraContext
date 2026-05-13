@@ -1,242 +1,251 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Network, Search, Filter, Maximize2, ZoomIn, ZoomOut, ChevronRight, X, Info, Layers } from "lucide-react";
+import KnowledgeGraph from "@/components/KnowledgeGraph";
 import DashboardSidebar from "@/components/DashboardSidebar";
-import Link from "next/link";
 
-interface Node {
-  id: string;
-  label: string;
-  type: "thread" | "project" | "model";
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-}
-
-interface Link {
-  source: string;
-  target: string;
-}
-
-export default function KnowledgeGraphPage() {
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [links, setLinks] = useState<Link[]>([]);
-  const [hoveredNode, setHoveredNode] = useState<Node | null>(null);
+export default function GraphPage() {
+  const [data, setData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedNode, setSelectedNode] = useState<any>(null);
+  const [activeFilters, setActiveFilters] = useState<string[]>(["team", "thread", "model"]);
+  
+  const graphRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const requestRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    // Generate simulated architectural data
-    const mockNodes: Node[] = [
-      { id: "p1", label: "E-commerce API", type: "project", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "p2", label: "Mobile App", type: "project", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "m1", label: "Claude 3.5", type: "model", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "m2", label: "GPT-4o", type: "model", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "t1", label: "Auth Flow", type: "thread", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "t2", label: "Stripe Logic", type: "thread", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "t3", label: "UI Polish", type: "thread", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "t4", label: "Native Bridge", type: "thread", x: 0, y: 0, vx: 0, vy: 0 },
-      { id: "t5", label: "Push Notification", type: "thread", x: 0, y: 0, vx: 0, vy: 0 },
-    ];
-
-    const mockLinks: Link[] = [
-      { source: "p1", target: "t1" },
-      { source: "p1", target: "t2" },
-      { source: "p1", target: "t3" },
-      { source: "p2", target: "t4" },
-      { source: "p2", target: "t5" },
-      { source: "m1", target: "t1" },
-      { source: "m1", target: "t4" },
-      { source: "m2", target: "t2" },
-      { source: "m2", target: "t5" },
-      { source: "m1", target: "t3" },
-    ];
-
-    // Initialize positions randomly in a circle
-    const width = containerRef.current?.clientWidth || 800;
-    const height = containerRef.current?.clientHeight || 600;
-    
-    mockNodes.forEach(n => {
-      n.x = width / 2 + (Math.random() - 0.5) * 400;
-      n.y = height / 2 + (Math.random() - 0.5) * 400;
-    });
-
-    setNodes(mockNodes);
-    setLinks(mockLinks);
-
-    // Simple Force-Directed Simulation Loop
-    const animate = () => {
-      setNodes(prevNodes => {
-        const nextNodes = [...prevNodes];
-        const k = 0.05; // attraction strength
-        const r = 1500; // repulsion strength
-        
-        // Repulsion between all nodes
-        for (let i = 0; i < nextNodes.length; i++) {
-          for (let j = i + 1; j < nextNodes.length; j++) {
-            const dx = nextNodes[j].x - nextNodes[i].x;
-            const dy = nextNodes[j].y - nextNodes[i].y;
-            const distSq = dx * dx + dy * dy + 0.1;
-            const force = r / distSq;
-            const fx = (dx / Math.sqrt(distSq)) * force;
-            const fy = (dy / Math.sqrt(distSq)) * force;
-            nextNodes[i].vx -= fx;
-            nextNodes[i].vy -= fy;
-            nextNodes[j].vx += fx;
-            nextNodes[j].vy += fy;
-          }
+    async function fetchData() {
+      try {
+        const res = await fetch("/api/v1/graph");
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
         }
-
-        // Attraction for linked nodes
-        mockLinks.forEach(link => {
-          const source = nextNodes.find(n => n.id === link.source);
-          const target = nextNodes.find(n => n.id === link.target);
-          if (source && target) {
-            const dx = target.x - source.x;
-            const dy = target.y - source.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const force = (dist - 100) * k;
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-            source.vx += fx;
-            source.vy += fy;
-            target.vx -= fx;
-            target.vy -= fy;
-          }
-        });
-
-        // Update positions and apply friction
-        const friction = 0.9;
-        const centerX = width / 2;
-        const centerY = height / 2;
-        const centerGravity = 0.01;
-
-        nextNodes.forEach(n => {
-          // Gravity to center
-          n.vx += (centerX - n.x) * centerGravity;
-          n.vy += (centerY - n.y) * centerGravity;
-
-          n.x += n.vx;
-          n.y += n.vy;
-          n.vx *= friction;
-          n.vy *= friction;
-
-          // Constraints
-          n.x = Math.max(50, Math.min(width - 50, n.x));
-          n.y = Math.max(50, Math.min(height - 50, n.y));
-        });
-
-        return nextNodes;
-      });
-      requestRef.current = requestAnimationFrame(animate);
-    };
-
-    requestRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(requestRef.current!);
+      } catch (err) {
+        console.error("Failed to fetch graph data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
+  const filteredData = useMemo(() => {
+    const filteredNodes = data.nodes.filter(node => 
+      activeFilters.includes(node.type) && 
+      (searchQuery === "" || node.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+    
+    const nodeIds = new Set(filteredNodes.map(n => n.id));
+    const filteredLinks = data.links.filter(link => 
+      nodeIds.has(typeof link.source === 'object' ? link.source.id : link.source) && 
+      nodeIds.has(typeof link.target === 'object' ? link.target.id : link.target)
+    );
+
+    return { nodes: filteredNodes, links: filteredLinks };
+  }, [data, searchQuery, activeFilters]);
+
+  const toggleFilter = (type: string) => {
+    setActiveFilters(prev => 
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const handleZoomIn = () => graphRef.current?.zoomIn();
+  const handleZoomOut = () => graphRef.current?.zoomOut();
+  const handleMaximize = () => {
+    if (!containerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black">
-      <div className="flex h-screen overflow-hidden">
-        <DashboardSidebar />
+    <div className="flex h-screen overflow-hidden bg-[#0A0A0A] text-white selection:bg-[#FF5733]/30">
+      <DashboardSidebar />
 
-        <main className="flex-1 flex flex-col min-w-0 bg-black overflow-hidden relative">
+      <main ref={containerRef} className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-[#0A0A0A]">
+        {/* Subtle Kinetic Grid Background */}
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none overflow-hidden">
+           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
+        </div>
+
+        {/* UI Overlays */}
+        <div className="absolute inset-0 z-20 pointer-events-none flex flex-col">
+          
           {/* Header Overlay */}
-          <header className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-12 z-10 bg-gradient-to-b from-black to-transparent">
-             <div>
-                <h1 className="text-xl font-bold tracking-tight uppercase">Knowledge Graph</h1>
-                <p className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">Architectural Mapping of AI Context</p>
-             </div>
-             
-             <div className="flex items-center gap-6">
-                <div className="flex items-center gap-4 text-[10px] font-mono font-bold uppercase tracking-widest">
-                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-white" /> Thread</div>
-                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-500" /> Project</div>
-                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full border border-gray-600" /> Model</div>
+          <div className="w-full p-8 flex items-start justify-between">
+            <div className="pointer-events-auto flex items-center gap-5">
+              <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center backdrop-blur-md shadow-2xl">
+                <Network className="w-6 h-6 text-[#FF5733]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                   <div className="w-2 h-2 rounded-full bg-[#FF5733] animate-pulse" />
+                   <span className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-[0.3em]">Neural Topology</span>
                 </div>
-                <Link href="/dashboard" className="h-9 px-4 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors flex items-center">
-                  Back to Hub
-                </Link>
-             </div>
-          </header>
+                <h1 className="text-3xl font-bold tracking-tight text-gradient">Knowledge Graph</h1>
+              </div>
+            </div>
 
-          {/* Graph Canvas */}
-          <div ref={containerRef} className="flex-1 bg-black blueprint-grid cursor-grab active:cursor-grabbing overflow-hidden">
-            <svg className="w-full h-full">
-              {/* Lines */}
-              {links.map((link, i) => {
-                const source = nodes.find(n => n.id === link.source);
-                const target = nodes.find(n => n.id === link.target);
-                if (!source || !target) return null;
-                return (
-                  <line
-                    key={i}
-                    x1={source.x}
-                    y1={source.y}
-                    x2={target.x}
-                    y2={target.y}
-                    stroke="#262626"
-                    strokeWidth="1"
-                    className="transition-opacity duration-300"
-                    opacity={hoveredNode ? (hoveredNode.id === source.id || hoveredNode.id === target.id ? 1 : 0.1) : 0.3}
+            <div className="pointer-events-auto flex flex-col items-end gap-4">
+               {/* Search Bar */}
+               <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#FF5733] transition-colors" />
+                  <input 
+                    type="text" 
+                    placeholder="Search nodes..." 
+                    className="h-11 w-64 pl-12 pr-4 bg-white/[0.03] border border-white/10 rounded-full text-xs font-medium placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-[#FF5733]/50 focus:bg-white/[0.05] transition-all backdrop-blur-md text-white"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
-                );
-              })}
+               </div>
 
-              {/* Nodes */}
-              {nodes.map((node) => (
-                <g 
-                  key={node.id} 
-                  className="cursor-pointer group"
-                  onMouseEnter={() => setHoveredNode(node)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                >
-                  <circle
-                    cx={node.x}
-                    cy={node.y}
-                    r={node.type === 'project' ? 8 : node.type === 'model' ? 6 : 5}
-                    fill={node.type === 'thread' ? '#ffffff' : node.type === 'project' ? '#737373' : 'transparent'}
-                    stroke={node.type === 'model' ? '#525252' : 'none'}
-                    strokeWidth={node.type === 'model' ? 2 : 0}
-                    className="transition-all duration-300"
-                    opacity={hoveredNode ? (hoveredNode.id === node.id ? 1 : 0.3) : 1}
-                  />
-                  <text
-                    x={node.x}
-                    y={node.y + 20}
-                    textAnchor="middle"
-                    className={`text-[9px] font-mono font-bold uppercase tracking-widest transition-all duration-300 pointer-events-none ${hoveredNode?.id === node.id ? 'fill-white' : 'fill-gray-600'}`}
-                  >
-                    {node.label}
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </div>
-
-          {/* Info Card Overlay */}
-          {hoveredNode && (
-            <div className="absolute bottom-12 left-12 w-64 card-noir border-gray-700 bg-black/80 backdrop-blur-md animate-in fade-in slide-in-from-bottom-4 duration-200">
-               <div className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest mb-2">{hoveredNode.type}</div>
-               <h3 className="text-lg font-bold uppercase tracking-tight mb-4">{hoveredNode.label}</h3>
-               <div className="space-y-3">
-                  <div className="flex justify-between text-[10px] font-mono uppercase tracking-widest font-bold">
-                     <span className="text-gray-600">Connected Nodes</span>
-                     <span className="text-white">{links.filter(l => l.source === hoveredNode.id || l.target === hoveredNode.id).length}</span>
-                  </div>
-                  <button className="w-full mt-4 h-9 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded hover:bg-gray-200 transition-colors">
-                     Explore Node
-                  </button>
+               {/* Legend / Filters */}
+               <div className="flex items-center gap-2 p-1.5 bg-white/[0.03] border border-white/10 rounded-full backdrop-blur-md">
+                 <button 
+                   onClick={() => toggleFilter("team")}
+                   className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeFilters.includes("team") ? "bg-white text-black" : "text-gray-500 hover:text-white"}`}
+                 >
+                   <div className={`w-1.5 h-1.5 rounded-full ${activeFilters.includes("team") ? "bg-black" : "bg-white"}`} />
+                   Teams
+                 </button>
+                 <button 
+                   onClick={() => toggleFilter("thread")}
+                   className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeFilters.includes("thread") ? "bg-[#FF5733] text-black" : "text-gray-500 hover:text-white"}`}
+                 >
+                   <div className={`w-1.5 h-1.5 rounded-full ${activeFilters.includes("thread") ? "bg-black" : "bg-[#FF5733]"}`} />
+                   Threads
+                 </button>
+                 <button 
+                   onClick={() => toggleFilter("model")}
+                   className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeFilters.includes("model") ? "bg-[#8888ff] text-black" : "text-gray-500 hover:text-white"}`}
+                 >
+                   <div className={`w-1.5 h-1.5 rounded-full ${activeFilters.includes("model") ? "bg-black" : "bg-[#8888ff]"}`} />
+                   Models
+                 </button>
                </div>
             </div>
-          )}
-
-          <div className="absolute bottom-8 right-12 text-[10px] font-mono font-bold text-gray-700 uppercase tracking-[0.2em]">
-             Interactive Force-Simulation Protocol v1.0
           </div>
-        </main>
-      </div>
+
+          <div className="flex-1" />
+
+          {/* Bottom Toolbar Overlay */}
+          <div className="p-8 flex items-end justify-between">
+             <div className="pointer-events-auto flex items-center gap-2">
+                <div className="px-4 py-2 bg-white/[0.03] border border-white/10 rounded-xl backdrop-blur-md flex items-center gap-6">
+                   <div className="flex flex-col">
+                      <span className="text-[10px] text-gray-500 font-mono uppercase tracking-tighter">Nodes</span>
+                      <span className="text-sm font-bold">{filteredData.nodes.length}</span>
+                   </div>
+                   <div className="w-px h-6 bg-white/10" />
+                   <div className="flex flex-col">
+                      <span className="text-[10px] text-gray-500 font-mono uppercase tracking-tighter">Links</span>
+                      <span className="text-sm font-bold">{filteredData.links.length}</span>
+                   </div>
+                </div>
+             </div>
+
+             <div className="pointer-events-auto flex items-center gap-3">
+                <button 
+                  onClick={handleZoomIn}
+                  className="w-11 h-11 bg-white/[0.03] border border-white/10 rounded-xl flex items-center justify-center hover:bg-[#FF5733]/10 hover:border-[#FF5733]/30 text-gray-400 hover:text-[#FF5733] transition-all backdrop-blur-md"
+                >
+                   <ZoomIn className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={handleZoomOut}
+                  className="w-11 h-11 bg-white/[0.03] border border-white/10 rounded-xl flex items-center justify-center hover:bg-[#FF5733]/10 hover:border-[#FF5733]/30 text-gray-400 hover:text-[#FF5733] transition-all backdrop-blur-md"
+                >
+                   <ZoomOut className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={handleMaximize}
+                  className="w-11 h-11 bg-white/[0.03] border border-white/10 rounded-xl flex items-center justify-center hover:bg-[#FF5733]/10 hover:border-[#FF5733]/30 text-gray-400 hover:text-[#FF5733] transition-all backdrop-blur-md"
+                >
+                   <Maximize2 className="w-4 h-4" />
+                </button>
+             </div>
+          </div>
+        </div>
+
+        {/* Selected Node Panel (Slide-in) */}
+        {selectedNode && (
+          <div className="absolute top-1/2 -translate-y-1/2 right-8 z-40 w-80 glass-card p-0 animate-in slide-in-from-right duration-500 pointer-events-auto overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+             <div className="p-6 border-b border-white/10 bg-[#FF5733]/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                   <div className={`w-8 h-8 rounded bg-black/40 border border-white/10 flex items-center justify-center`}>
+                      <Info className="w-4 h-4 text-[#FF5733]" />
+                   </div>
+                   <h3 className="text-sm font-bold uppercase tracking-widest text-white">Node Details</h3>
+                </div>
+                <button onClick={() => setSelectedNode(null)} className="text-gray-500 hover:text-white transition-colors">
+                   <X className="w-4 h-4" />
+                </button>
+             </div>
+             <div className="p-8 space-y-8">
+                <div className="space-y-2">
+                   <p className="text-[10px] font-mono font-bold text-gray-500 uppercase tracking-widest">Identification</p>
+                   <h4 className="text-xl font-bold text-white leading-tight">{selectedNode.label}</h4>
+                   <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest border ${
+                      selectedNode.type === 'team' ? 'border-white/20 text-white bg-white/5' : 
+                      selectedNode.type === 'thread' ? 'border-[#FF5733]/30 text-[#FF5733] bg-[#FF5733]/5' : 
+                      'border-blue-400/30 text-blue-400 bg-blue-400/5'
+                   }`}>
+                      {selectedNode.type}
+                   </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                   <div className="space-y-1">
+                      <p className="text-[10px] font-mono text-gray-500 uppercase">Mass</p>
+                      <p className="text-sm font-bold">{selectedNode.val}</p>
+                   </div>
+                   <div className="space-y-1">
+                      <p className="text-[10px] font-mono text-gray-500 uppercase">System</p>
+                      <p className="text-sm font-bold">Stable</p>
+                   </div>
+                </div>
+
+                <button 
+                  onClick={() => selectedNode.type === 'thread' && (window.location.href = `/dashboard/thread/${selectedNode.id}`)}
+                  className="w-full h-11 rounded bg-white text-black text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-[#FF5733] hover:text-black transition-all flex items-center justify-center gap-2 group shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                >
+                  Inspect Context
+                  <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                </button>
+             </div>
+             <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#FF5733] to-transparent opacity-30" />
+          </div>
+        )}
+
+        {/* Graph Canvas Area */}
+        <div className="flex-1 w-full h-full relative z-10">
+          {loading ? (
+             <div className="w-full h-full flex items-center justify-center bg-[#0A0A0A]">
+                <div className="flex flex-col items-center gap-6">
+                   <div className="relative">
+                      <div className="w-16 h-16 border border-white/5 rounded-full" />
+                      <div className="absolute inset-0 w-16 h-16 border-t-2 border-[#FF5733] rounded-full animate-spin" />
+                   </div>
+                   <p className="text-gray-500 text-xs font-mono tracking-[0.4em] uppercase animate-pulse">Syncing neural clusters...</p>
+                </div>
+             </div>
+          ) : (
+             <KnowledgeGraph 
+               ref={graphRef}
+               data={filteredData} 
+               onNodeSelect={(node: any) => setSelectedNode(node)}
+             />
+          )}
+        </div>
+      </main>
     </div>
   );
 }

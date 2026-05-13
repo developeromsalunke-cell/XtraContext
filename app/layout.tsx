@@ -23,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 import CommandMenu from "@/components/CommandMenu";
+import { Toaster } from "sonner";
 
 export default function RootLayout({
   children,
@@ -35,6 +36,7 @@ export default function RootLayout({
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground selection:bg-white/20 selection:text-white">
+        <Toaster theme="dark" position="top-right" richColors />
         <CommandMenu />
         {children}
       </body>

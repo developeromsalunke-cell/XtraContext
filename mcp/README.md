@@ -47,6 +47,24 @@ Add this to your `claude_desktop_config.json`:
 }
 ```
 
+#### Local Development (Direct Link)
+If you are developing locally, use this configuration to point to your local build:
+
+```json
+{
+  "mcpServers": {
+    "xtracontext": {
+      "command": "node",
+      "args": ["D:/Projects/xtracontext/dist/mcp/server.js"],
+      "env": {
+        "XTRACONTEXT_API_KEY": "xc_c00a4f9a6df91365c12ac4fb8ff3cc9e",
+        "XTRACONTEXT_API_URL": "http://localhost:3000/api/v1/mcp/proxy"
+      }
+    }
+  }
+}
+```
+
 #### Cursor / Windsurf
 Add a new MCP server in settings:
 - **Type**: `command`
@@ -56,6 +74,7 @@ Add a new MCP server in settings:
 ## 🧠 Capabilities
 
 - **`search_memory`**: Search your architectural history for past decisions, patterns, and code snippets.
+- **`init`**: Get a manifesto and guidelines on what kind of information should be captured for high-quality project memory.
 - **`log_action`**: Proactively save important project context or engineering decisions to your universal vault.
 - **`append_memory`**: Add new messages or turns to an existing context thread.
 

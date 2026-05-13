@@ -10,7 +10,7 @@ async function init() {
   const client = new DataAPIClient(token);
   const db = client.db(endpoint);
 
-  const collections = ["users", "teams", "conversations", "messages", "api_keys"];
+  const collections = ["users", "teams", "conversations", "messages", "api_keys", "projects", "context_states", "todos", "team_invitations"];
 
   console.log("Initializing Astra DB collections...");
 

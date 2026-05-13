@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Moon, Sun } from "lucide-react";
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -29,8 +30,8 @@ export default function ThemeToggle() {
       title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
     >
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 flex items-center justify-center rounded border border-gray-700 bg-gray-900 group-hover:border-white transition-all">
-          <span className="text-xs">{theme === "dark" ? "🌑" : "☀️"}</span>
+        <div className="w-8 h-8 flex items-center justify-center rounded border border-[#FF5733]/30 bg-[#FF5733]/10 group-hover:border-[#FF5733] transition-all">
+          {theme === "dark" ? <Moon className="w-3.5 h-3.5 text-[#FF5733]" /> : <Sun className="w-3.5 h-3.5 text-[#FF5733]" />}
         </div>
         <span className="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-widest group-hover:text-white transition-colors">
           {theme === "dark" ? "Noir Mode" : "Swiss Mode"}

@@ -29,35 +29,16 @@ export default function MemorySearch() {
 
     setIsSearching(true);
     try {
-      // In a real app, we'd fetch from /api/v1/search
-      // For now, let's simulate a delay and some results
-      await new Promise(r => setTimeout(r, 800));
-      
-      const mockResults: SearchResult[] = [
-        {
-          conversation: {
-            id: "conv_1",
-            title: "OAuth2 implementation",
-            platform: "CHATGPT",
-            model: "GPT_4",
-            createdAt: new Date().toISOString(),
-          },
-          matches: [
-            {
-              id: "msg_1",
-              role: "ASSISTANT",
-              content: "To implement OAuth2 in FastAPI, you should use the `OAuth2PasswordBearer` class...",
-              createdAt: new Date().toISOString(),
-            }
-          ]
-        }
-      ];
-      setResults(mockResults);
+      const response = await fetch(`/api/v1/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error("Search failed");
+      const data = await response.json();
+      setResults(data.results || []);
     } catch (err) {
       console.error("Search failed", err);
     } finally {
       setIsSearching(false);
     }
+
   };
 
   return (

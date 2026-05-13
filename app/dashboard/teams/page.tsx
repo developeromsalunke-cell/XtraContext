@@ -1,12 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import Link from "next/link";
+import { 
+  Users, 
+  Plus, 
+  UserPlus, 
+  Settings, 
+  Activity, 
+  Mail, 
+  Shield, 
+  ChevronRight,
+  ChevronLeft,
+  Search,
+  MoreVertical,
+  History,
+  Zap,
+  Globe,
+  Loader2
+} from "lucide-react";
+import { toast } from "sonner";
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -15,27 +33,30 @@ export default function TeamsPage() {
   const [newTeamName, setNewTeamName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
+    fetchUser();
   }, []);
+
+  const fetchUser = async () => {
+    try {
+      const res = await fetch("/api/v1/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+      }
+    } catch (e) {}
+  };
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [teamsRes, activityRes] = await Promise.all([
-        fetch("/api/v1/teams"),
-        fetch("/api/v1/teams/activity")
-      ]);
-
-      if (teamsRes.ok) {
-        const teamsData = await teamsRes.json();
-        setTeams(teamsData.teams || []);
-      }
-
-      if (activityRes.ok) {
-        const activityData = await activityRes.json();
-        setActivities(activityData.activities || []);
+      const res = await fetch("/api/v1/teams");
+      if (res.ok) {
+        const data = await res.json();
+        setTeams(data.teams || []);
       }
     } catch (error) {
       console.error("Failed to fetch team data", error);
@@ -44,10 +65,11 @@ export default function TeamsPage() {
     }
   };
 
-  const handleCreateTeam = async (e: React.FormEvent) => {
+  const handleCreateTeam = async (e: FormEvent) => {
     e.preventDefault();
     if (!newTeamName) return;
     setActionLoading(true);
+    const toastId = toast.loading("Deploying new team perimeter...");
     try {
       const res = await fetch("/api/v1/teams", {
         method: "POST",
@@ -57,125 +79,166 @@ export default function TeamsPage() {
         await fetchData();
         setNewTeamName("");
         setShowCreateModal(false);
+        toast.success("Team successfully deployed", { id: toastId });
+      } else {
+        toast.error("Failed to create team", { id: toastId });
       }
     } catch (error) {
       console.error("Failed to create team", error);
+      toast.error("An error occurred during deployment", { id: toastId });
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleInviteUser = async (e: React.FormEvent) => {
+  const handleInviteUser = async (e: FormEvent) => {
     e.preventDefault();
     if (!inviteEmail || !selectedTeamId) return;
     setActionLoading(true);
-    // Simulation: In a real app, this calls an invite API
+    const toastId = toast.loading("Transmitting invitation...");
+    // Simulation
     setTimeout(() => {
-      alert(`Invitation sent to ${inviteEmail}`);
       setActionLoading(false);
       setShowInviteModal(false);
       setInviteEmail("");
+      toast.success("Authorization sent to recipient", { id: toastId });
     }, 1000);
   };
 
+  const handleUpdateRole = async (teamId: string, userId: string, newRole: string) => {
+    const toastId = toast.loading("Updating authorization level...");
+    try {
+      const res = await fetch(`/api/v1/teams/${teamId}/members/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (res.ok) {
+        await fetchData();
+        toast.success(`Role updated to ${newRole}`, { id: toastId });
+      } else {
+        toast.error("Failed to update role", { id: toastId });
+      }
+    } catch (error) {
+      console.error("Failed to update role", error);
+      toast.error("An error occurred while updating role", { id: toastId });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black">
+    <div className="min-h-screen bg-[#0A0A0A] text-white selection:bg-[#FF5733]/30">
       <div className="flex h-screen overflow-hidden">
         <DashboardSidebar />
 
-        <main className="flex-1 flex flex-col min-w-0 bg-black overflow-y-auto p-12 custom-scrollbar">
-          <div className="max-w-6xl mx-auto w-full">
+        <main className="flex-1 flex flex-col min-w-0 bg-[#0A0A0A] overflow-y-auto p-8 lg:p-12 custom-scrollbar relative">
+          {/* Subtle Background Elements Removed */}
+
+          <div className="max-w-6xl mx-auto w-full relative z-10">
             <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
               <div>
-                <h1 className="text-4xl font-bold tracking-tighter uppercase mb-4">Teams</h1>
-                <p className="text-gray-400 text-[11px] font-mono font-bold tracking-widest uppercase">Manage your team members and shared projects</p>
+                <Link 
+                  href="/dashboard" 
+                  className="group flex items-center gap-2 text-[10px] font-mono font-bold text-gray-500 uppercase tracking-[0.3em] hover:text-white transition-colors mb-8"
+                >
+                  <ChevronLeft className="w-3 h-3 group-hover:-translate-x-0.5 transition-transform" />
+                  Return to Hub
+                </Link>
+                <div className="flex items-center gap-4 mb-3">
+                   <div className="w-2 h-2 rounded-full bg-[#FF5733] shadow-[0_0_8px_rgba(255,87,51,0.5)]" />
+                   <span className="text-xs font-mono font-bold text-gray-500 uppercase tracking-[0.2em]">Team Management</span>
+                </div>
+                <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-gradient">Teams</h1>
               </div>
 
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="h-11 px-8 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors"
+                className="btn-premium px-8 h-12 shadow-[0_0_20px_rgba(255,87,51,0.15)]"
               >
-                Create New Team
+                <Plus className="w-4 h-4 mr-2" />
+                Create Team
               </button>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-               {/* Activity Sidebar */}
-               <div className="lg:col-span-4 order-2 lg:order-1">
-                  <section className="card-noir border-gray-700">
-                     <div className="flex items-center justify-between mb-8">
-                        <h2 className="text-[11px] font-mono font-bold text-gray-300 uppercase tracking-widest">Team Activity</h2>
-                        {activities.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                     </div>
+            <div className="space-y-8 max-w-5xl mx-auto">
+               <InvitationsSection />
 
-                     <div className="space-y-10">
-                        {activities.length === 0 ? (
-                           <p className="text-[11px] font-mono text-gray-600 uppercase tracking-widest font-bold">No recent events.</p>
-                        ) : (
-                          activities.map((activity, i) => (
-                             <div key={i} className="space-y-1">
-                                <p className="text-[13px] leading-relaxed text-gray-300">
-                                   <span className="text-white font-bold">{activity.user}</span> {activity.action}: <span className="font-bold">"{activity.title}"</span>
-                                </p>
-                                <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold">
-                                   {new Date(activity.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                             </div>
-                          ))
-                        )}
-                     </div>
-                  </section>
-               </div>
-
-               {/* Teams List */}
-               <div className="lg:col-span-8 order-1 lg:order-2 space-y-6">
+               {/* Workspaces List */}
+               <div className="space-y-6">
                   {loading ? (
                     Array(2).fill(0).map((_, i) => (
-                      <div key={i} className="h-48 rounded-lg bg-gray-900 border border-gray-700 animate-pulse" />
+                      <div key={i} className="h-64 rounded-3xl bg-[#FF5733]/10 border border-[#FF5733]/20 animate-pulse" />
                     ))
                   ) : teams.length === 0 ? (
-                    <div className="py-32 text-center border border-dashed border-gray-700 rounded-lg">
-                       <p className="text-[11px] font-mono text-gray-500 uppercase tracking-widest font-bold">No teams identified.</p>
+                    <div className="py-32 text-center border border-dashed border-white/10 rounded-[40px] bg-white/[0.01]">
+                       <Users className="w-12 h-12 text-gray-700 mx-auto mb-6 opacity-30" />
+                       <p className="text-base font-semibold text-gray-400 uppercase tracking-widest">No active teams detected.</p>
+                       <p className="text-sm text-gray-500 mt-2 font-medium">Create a team to begin shared context capture.</p>
                     </div>
                   ) : (
                     teams.map((team) => (
-                      <div key={team._id} className="card-noir">
-                        <div className="flex items-center justify-between mb-8">
+                      <div key={team._id} className="p-8 lg:p-10 bg-[#111111] border border-white/[0.06] rounded-2xl group hover:border-[#FF5733]/30 transition-all duration-300 relative overflow-hidden">
+                        
+                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
                            <div>
-                              <h3 className="text-2xl font-bold uppercase tracking-tighter mb-2">{team.name}</h3>
-                              <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold">ID: {team.slug}</p>
+                              <h3 className="text-2xl font-bold tracking-tight text-white group-hover:text-[#FF5733] transition-colors mb-1">{team.name}</h3>
+                              <p className="text-xs font-mono text-gray-500 uppercase tracking-widest">
+                                REF: {team.slug}
+                              </p>
                            </div>
-                           <div className="flex gap-2">
+                           <div className="flex items-center gap-3">
                               <button 
                                 onClick={() => { setSelectedTeamId(team._id); setShowInviteModal(true); }}
-                                className="text-[10px] font-bold uppercase tracking-widest text-white bg-gray-800 px-4 py-1.5 rounded-md hover:bg-gray-700 transition-colors"
+                                className="h-10 px-6 flex items-center gap-2 bg-[#FF5733] text-black text-[11px] font-bold uppercase tracking-widest rounded hover:bg-[#ff6c4d] transition-all"
                               >
+                                <UserPlus className="w-4 h-4" />
                                 Invite
                               </button>
                               <Link 
                                 href={`/dashboard/teams/${team._id}/settings`}
-                                className="text-[10px] font-bold uppercase tracking-widest text-gray-400 border border-gray-700 px-4 py-1.5 rounded-md hover:border-white hover:text-white transition-colors flex items-center"
+                                className="h-10 px-4 flex items-center gap-2 border border-white/10 rounded text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-[#FF5733]/50 hover:text-[#FF5733] transition-all"
                               >
+                                <Settings className="w-4 h-4" />
                                 Settings
                               </Link>
                            </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           {team.members?.map((member: any) => (
-                              <div key={member.userId} className="p-4 rounded-md bg-black border border-gray-700 flex items-center justify-between group hover:border-gray-500 transition-all">
-                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-300 group-hover:bg-white group-hover:text-black transition-all">
-                                       {member.name?.[0] || 'U'}
-                                    </div>
-                                    <div className="min-w-0">
-                                       <h4 className="text-sm font-bold text-white uppercase tracking-tight truncate">{member.name}</h4>
-                                       <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold">{member.role}</p>
-                                    </div>
-                                 </div>
-                              </div>
-                           ))}
-                        </div>
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {team.members?.map((member: any) => {
+                               const isCurrentUser = member.userId === currentUser?.id;
+                               const currentMemberInTeam = team.members?.find((m: any) => m.userId === currentUser?.id);
+                               const canEdit = currentMemberInTeam?.role === 'ADMIN' && !isCurrentUser;
+
+                               return (
+                                  <div key={member.userId} className="p-4 rounded-xl bg-[#0A0A0A] border border-white/[0.04] flex items-center gap-4 hover:border-white/10 transition-all">
+                                     <div className="w-10 h-10 rounded-lg bg-[#1a1a1a] flex items-center justify-center text-sm font-bold text-gray-400 uppercase shrink-0">
+                                        {member.name?.[0] || 'U'}
+                                     </div>
+                                     <div className="min-w-0 flex-1">
+                                        <h4 className="text-sm font-semibold text-gray-200 truncate">{member.name} {isCurrentUser && "(You)"}</h4>
+                                        {canEdit ? (
+                                           <select 
+                                             value={member.role}
+                                             onChange={(e) => handleUpdateRole(team._id, member.userId, e.target.value)}
+                                             className="bg-transparent text-[10px] text-[#FF5733] font-bold uppercase tracking-widest border-none p-0 focus:ring-0 cursor-pointer"
+                                           >
+                                              <option value="ADMIN" className="bg-[#0A0A0A]">ADMIN</option>
+                                              <option value="MEMBER" className="bg-[#0A0A0A]">MEMBER</option>
+                                              <option value="VIEWER" className="bg-[#0A0A0A]">VIEWER</option>
+                                           </select>
+                                        ) : (
+                                           <p className={`text-[10px] font-bold uppercase tracking-widest ${member.role === 'ADMIN' ? 'text-[#FF5733]' : 'text-gray-500'}`}>
+                                              {member.role}
+                                           </p>
+                                        )}
+                                     </div>
+                                     {member.role === 'ADMIN' && (
+                                        <div className="ml-auto w-2 h-2 rounded-full bg-[#FF5733] shrink-0" />
+                                     )}
+                                  </div>
+                               );
+                            })}
+                         </div>
                       </div>
                     ))
                   )}
@@ -187,22 +250,24 @@ export default function TeamsPage() {
 
       {/* Create Team Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-           <div className="w-full max-w-md card-noir bg-gray-900 border-gray-700 p-10 space-y-8 animate-in fade-in zoom-in duration-200">
-              <div className="space-y-2">
-                 <h2 className="text-2xl font-bold uppercase tracking-tight">Create Team</h2>
-                 <p className="text-gray-400 text-sm font-medium">Start a new shared workspace for your project.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-[#0A0A0A]/80 backdrop-blur-md" onClick={() => setShowCreateModal(false)} />
+           <div className="w-full max-w-md glass-card p-10 space-y-8 animate-in fade-in zoom-in duration-300 relative z-10 overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#FF5733] via-[#ff6c4d] to-[#FF5733]" />
+              <div className="space-y-1">
+                 <h2 className="text-2xl font-bold tracking-tight text-white">Initialize Team</h2>
+                 <p className="text-gray-400 text-sm font-medium">Create a new secure perimeter for your team.</p>
               </div>
 
               <form onSubmit={handleCreateTeam} className="space-y-8">
                  <div className="space-y-3">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono">Team Name</label>
+                    <label className="text-xs font-mono font-bold text-gray-400 uppercase tracking-[0.2em]">Team Name</label>
                     <input
                        autoFocus
                        required
                        type="text"
-                       placeholder="E.G. CORE INFRASTRUCTURE"
-                       className="input-noir w-full uppercase font-mono text-xs"
+                       placeholder="e.g. Engineering Team"
+                       className="input-noir w-full font-medium text-sm h-12"
                        value={newTeamName}
                        onChange={(e) => setNewTeamName(e.target.value)}
                     />
@@ -212,16 +277,16 @@ export default function TeamsPage() {
                     <button 
                       type="button"
                       onClick={() => setShowCreateModal(false)}
-                      className="flex-1 h-12 border border-gray-700 text-white text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-800 transition-colors"
+                      className="flex-1 h-12 rounded border border-white/10 hover:border-[#FF5733] text-[#FF5733] text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center"
                     >
                       Cancel
                     </button>
                     <button 
                       disabled={actionLoading}
                       type="submit"
-                      className="flex-1 h-12 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+                      className="flex-[2] h-12 rounded bg-[#FF5733] hover:bg-[#ff6c4d] text-black text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center shadow-[0_0_20px_rgba(255,87,51,0.15)] disabled:opacity-50"
                     >
-                      {actionLoading ? "Creating..." : "Create"}
+                      {actionLoading ? "Deploying..." : "Confirm Deployment"}
                     </button>
                  </div>
               </form>
@@ -231,41 +296,43 @@ export default function TeamsPage() {
 
       {/* Invite Member Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-           <div className="w-full max-w-md card-noir bg-gray-900 border-gray-700 p-10 space-y-8 animate-in fade-in zoom-in duration-200">
-              <div className="space-y-2">
-                 <h2 className="text-2xl font-bold uppercase tracking-tight">Invite Member</h2>
-                 <p className="text-gray-400 text-sm font-medium">Invite a collaborator to join your team.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+           <div className="absolute inset-0 bg-[#0A0A0A]/80 backdrop-blur-md" onClick={() => setShowInviteModal(false)} />
+           <div className="w-full max-w-md glass-card p-10 space-y-8 animate-in fade-in zoom-in duration-300 relative z-10 overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#FF5733] via-[#ff6c4d] to-[#FF5733]" />
+              <div className="space-y-1">
+                 <h2 className="text-2xl font-bold tracking-tight text-white">Invite Collaborator</h2>
+                 <p className="text-gray-400 text-sm font-medium">Grant access to this team's architectural vault.</p>
               </div>
 
               <form onSubmit={handleInviteUser} className="space-y-8">
                  <div className="space-y-3">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest font-mono">Email Address</label>
-                    <input
-                       autoFocus
-                       required
-                       type="email"
-                       placeholder="PARTNER@COMPANY.COM"
-                       className="input-noir w-full font-mono text-xs"
-                       value={inviteEmail}
-                       onChange={(e) => setInviteEmail(e.target.value)}
-                    />
+                    <label className="text-xs font-mono font-bold text-gray-400 uppercase tracking-[0.2em]">Email Address</label>
+                      <input
+                         autoFocus
+                         required
+                         type="email"
+                         placeholder="partner@company.com"
+                         className="input-noir w-full font-medium text-sm px-4 h-12"
+                         value={inviteEmail}
+                         onChange={(e) => setInviteEmail(e.target.value)}
+                      />
                  </div>
 
                  <div className="flex gap-4 pt-4">
                     <button 
                       type="button"
                       onClick={() => setShowInviteModal(false)}
-                      className="flex-1 h-12 border border-gray-700 text-white text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-800 transition-colors"
+                      className="flex-1 h-12 rounded border border-white/10 hover:border-[#FF5733] text-[#FF5733] text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center"
                     >
                       Cancel
                     </button>
                     <button 
                       disabled={actionLoading}
                       type="submit"
-                      className="flex-1 h-12 bg-white text-black text-[11px] font-bold uppercase tracking-widest rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+                      className="flex-[2] h-12 rounded bg-[#FF5733] hover:bg-[#ff6c4d] text-black text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center shadow-[0_0_20px_rgba(255,87,51,0.15)] disabled:opacity-50"
                     >
-                      {actionLoading ? "Sending..." : "Send Invite"}
+                      {actionLoading ? "Transmitting..." : "Send Authorization"}
                     </button>
                  </div>
               </form>
@@ -275,3 +342,86 @@ export default function TeamsPage() {
     </div>
   );
 }
+
+function InvitationsSection() {
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchInvitations = async () => {
+    try {
+      const res = await fetch("/api/v1/teams/invitations");
+      if (res.ok) {
+        const data = await res.json();
+        setInvitations(data.invitations || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch invitations", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvitations();
+  }, []);
+
+  const handleAction = async (id: string, action: 'accept' | 'reject') => {
+    const toastId = toast.loading(`${action === 'accept' ? 'Joining' : 'Declining'} team...`);
+    try {
+      const res = await fetch(`/api/v1/teams/invitations/${id}`, {
+        method: action === 'accept' ? 'PATCH' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: action === 'accept' ? JSON.stringify({ action: 'accept' }) : undefined
+      });
+      if (res.ok) {
+        toast.success(`Invitation ${action === 'accept' ? 'accepted' : 'declined'}`, { id: toastId });
+        fetchInvitations();
+        // Trigger a reload of the main teams list if accepted
+        if (action === 'accept') window.location.reload();
+      } else {
+        toast.error(`Failed to ${action} invitation`, { id: toastId });
+      }
+    } catch (err) {
+      console.error(`Failed to ${action} invitation`, err);
+      toast.error("An error occurred", { id: toastId });
+    }
+  };
+
+  if (loading || invitations.length === 0) return null;
+
+  return (
+    <section className="glass-card p-8 border-[#FF5733]/30 bg-[#FF5733]/5 animate-in slide-in-from-right duration-500">
+      <div className="flex items-center gap-2 mb-6">
+        <Mail className="w-4 h-4 text-[#FF5733]" />
+        <h2 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Incoming Requests</h2>
+      </div>
+
+      <div className="space-y-4">
+        {invitations.map((inv) => (
+          <div key={inv._id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
+            <div className="space-y-1">
+              <p className="text-xs text-gray-400">Invite to join</p>
+              <h4 className="text-[13px] font-bold text-white uppercase tracking-tight">{inv.teamName}</h4>
+            </div>
+            
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleAction(inv._id, 'accept')}
+                className="flex-1 h-8 bg-[#FF5733] text-black text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-[#ff6c4d] transition-colors"
+              >
+                Accept
+              </button>
+              <button 
+                onClick={() => handleAction(inv._id, 'reject')}
+                className="flex-1 h-8 bg-white/5 text-gray-400 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-white/10 transition-colors"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+

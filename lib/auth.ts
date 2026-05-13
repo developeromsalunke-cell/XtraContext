@@ -73,6 +73,7 @@ export async function authenticateApiKey(
     userId: apiKey.userId || "system",
     role: "DEVELOPER",
     apiKeyId: String(apiKey._id),
+    apiKeyPrefix: apiKey.prefix,
   };
 }
 
