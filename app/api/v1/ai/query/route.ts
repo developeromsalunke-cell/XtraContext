@@ -56,7 +56,7 @@ Do not include any other text.
     let topThreadIds: string[] = [];
     try {
       // Find JSON array in the response string
-      const match = identifiedStr.match(/\[.*\]/s);
+      const match = identifiedStr.match(/\[[\s\S]*\]/);
       if (match) {
         topThreadIds = JSON.parse(match[0]);
       } else {
@@ -99,7 +99,7 @@ Provide a clear, helpful, and concise answer in Markdown format. If the context 
 
     const answer = await askGroq(synthesisPrompt);
     
-    const sources = recentThreads.filter(t => topThreadIds.includes(t._id));
+    const sources = recentThreads.filter(t => topThreadIds.includes(t._id as string));
 
     // Optional: Log query to AI queries collection
     try {

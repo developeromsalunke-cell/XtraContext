@@ -27,7 +27,7 @@ interface KnowledgeGraphProps {
 
 const KnowledgeGraph = forwardRef((props: KnowledgeGraphProps, ref) => {
   const { data, onNodeSelect } = props;
-  const fgRef = useRef<any>();
+  const fgRef = useRef<any>(null);
   const router = useRouter();
   const [windowSize, setWindowSize] = useState({ width: 800, height: 600 });
   const [hoverNode, setHoverNode] = useState<any>(null);

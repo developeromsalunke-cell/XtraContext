@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -17,13 +17,14 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const { action } = await request.json();
     if (action !== "accept") {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
     const invitationsColl = db.collection("team_invitations");
-    const invitation = await invitationsColl.findOne({ _id: params.id });
+    const invitation = await invitationsColl.findOne({ _id: id });
 
     if (!invitation) {
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
@@ -63,7 +64,7 @@ export async function PATCH(
 
     // 2. Mark invitation as ACCEPTED
     await invitationsColl.updateOne(
-      { _id: params.id },
+      { _id: id },
       { $set: { status: "ACCEPTED", updatedAt: new Date() } }
     );
 
@@ -80,7 +81,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -88,8 +89,9 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { id } = await params;
     const invitationsColl = db.collection("team_invitations");
-    const invitation = await invitationsColl.findOne({ _id: params.id });
+    const invitation = await invitationsColl.findOne({ _id: id });
 
     if (!invitation) {
       return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
@@ -100,7 +102,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await invitationsColl.deleteOne({ _id: params.id });
+    await invitationsColl.deleteOne({ _id: id });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Invitations API] DELETE Error:", error);

@@ -53,9 +53,9 @@ export async function GET(request: Request) {
 
     // Add conversation matches
     matchingConversations.forEach(c => {
-      resultsMap.set(c._id, {
+      resultsMap.set(c._id as string, {
         conversation: {
-          id: c._id,
+          id: c._id as string,
           title: c.title,
           platform: c.platform || "UNKNOWN",
           model: c.model || "UNKNOWN",
@@ -67,12 +67,12 @@ export async function GET(request: Request) {
 
     // Add message matches (and their conversations if not already added)
     matchingMessages.forEach(m => {
-      if (!resultsMap.has(m.conversationId)) {
+      if (!resultsMap.has(m.conversationId as string)) {
         const conv = teamConversations.find(c => c._id === m.conversationId);
         if (conv) {
-          resultsMap.set(m.conversationId, {
+          resultsMap.set(m.conversationId as string, {
             conversation: {
-              id: conv._id,
+              id: conv._id as string,
               title: conv.title,
               platform: conv.platform || "UNKNOWN",
               model: conv.model || "UNKNOWN",
@@ -83,10 +83,10 @@ export async function GET(request: Request) {
         }
       }
       
-      const result = resultsMap.get(m.conversationId);
+      const result = resultsMap.get(m.conversationId as string);
       if (result) {
         result.matches.push({
-          id: m._id,
+          id: m._id as string,
           role: m.role,
           content: m.content,
           createdAt: m.createdAt

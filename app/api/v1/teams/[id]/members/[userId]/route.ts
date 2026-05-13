@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string; userId: string } }
+  { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
   try {
     const session = await getSession();
@@ -12,8 +12,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const teamId = params.id;
-    const targetUserId = params.userId;
+    const { id: teamId, userId: targetUserId } = await params;
     const { role } = await request.json();
 
     if (!role || !["ADMIN", "MEMBER", "VIEWER"].includes(role)) {
