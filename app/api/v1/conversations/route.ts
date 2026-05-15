@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { getSession } from "@/lib/session";
+import { validateCsrf } from "@/lib/auth";
 
 const conversationSchema = z.object({
   title: z.string().min(1),
@@ -35,6 +36,19 @@ export async function POST(request: Request) {
 
     if (!targetTeamId) {
       return NextResponse.json({ error: "No team assigned" }, { status: 400 });
+    }
+
+    // SECURITY: Validate CSRF for session-based mutation
+    validateCsrf(request);
+
+    // SECURITY: Verify user is a member of the target team before creating resources
+    // Using manual check due to Astra DB nested query limitations
+    const { getAuthorizedTeamIds } = await import("@/lib/teams");
+    const userTeamIds = await getAuthorizedTeamIds(session.userId);
+    const isAuthorized = userTeamIds.includes(targetTeamId);
+
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "Unauthorized access to this team" }, { status: 403 });
     }
 
     // 1. Create Context Thread (formerly Conversation)
@@ -83,11 +97,9 @@ export async function GET(request: Request) {
     const teamsColl = db.collection("teams");
     const conversationsColl = db.collection("conversations");
 
-    // 1. Find all teams the user is a member of
-    const allTeams = await teamsColl.find({}).toArray();
-    const userTeamIds = allTeams
-      .filter(team => team.members?.some((m: any) => m.userId === userId))
-      .map(team => team._id);
+    // SECURITY: Fetch authorized team IDs in memory due to Astra DB query limitations
+    const { getAuthorizedTeamIds } = await import("@/lib/teams");
+    const userTeamIds = await getAuthorizedTeamIds(userId);
 
     if (userTeamIds.length === 0) {
       return NextResponse.json({ conversations: [] });

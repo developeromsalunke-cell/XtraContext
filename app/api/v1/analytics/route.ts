@@ -14,10 +14,9 @@ export async function GET(request: Request) {
     const conversationsColl = db.collection("conversations");
     const messagesColl = db.collection("messages");
 
-    const allTeams = await teamsColl.find({}).toArray();
-    const userTeamIds = allTeams
-      .filter(team => team.members?.some((m: any) => m.userId === userId))
-      .map(team => team._id);
+    // SECURITY: Fetch authorized team IDs in memory due to Astra DB query limitations
+    const { getAuthorizedTeamIds } = await import("@/lib/teams");
+    const userTeamIds = await getAuthorizedTeamIds(userId);
 
     if (userTeamIds.length === 0) {
       return NextResponse.json({ 
@@ -37,8 +36,14 @@ export async function GET(request: Request) {
 
     let messages: any[] = [];
     if (conversationIds.length > 0) {
+      // SECURITY: Use projection to only fetch necessary fields for analytics, 
+      // preventing memory exhaustion from large message contents.
       messages = await messagesColl.find(
-        { conversationId: { $in: conversationIds } }
+        { conversationId: { $in: conversationIds } },
+        { 
+          projection: { tokenCount: 1, cost: 1, conversationId: 1, createdAt: 1 },
+          limit: 10000 
+        }
       ).toArray();
     }
 

@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { validateCsrf } from "@/lib/auth";
+import { checkRateLimit, setRateLimitHeaders } from "@/lib/rate-limit";
 
 /**
  * GET /api/v1/teams/invitations
@@ -56,6 +58,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // SECURITY: Validate CSRF for session-based mutation
+    validateCsrf(request);
+
+    // SECURITY: Rate limit invitation sending to prevent spam
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = await checkRateLimit(`invitation:${ip}`);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Too Many Requests", message: "Invitation rate limit exceeded. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const { teamId, email, role = "DEVELOPER" } = await request.json();
     if (!teamId || !email) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -70,8 +85,7 @@ export async function POST(request: Request) {
 
     const isCleaner = team.members?.some((m: any) => m.userId === session.userId && m.role === "ADMIN");
     if (!isCleaner) {
-       // Allow for now in simulation, but strictly should check
-       console.warn("[Invitations API] User is not ADMIN, but allowing invitation in simulation mode.");
+       return NextResponse.json({ error: "Only team admins can send invitations" }, { status: 403 });
     }
 
     const invitationsColl = db.collection("team_invitations");

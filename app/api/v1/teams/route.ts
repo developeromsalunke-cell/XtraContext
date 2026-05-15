@@ -17,18 +17,13 @@ export async function GET() {
     const userId = session.userId;
     const teamsColl = db.collection("teams");
 
-    console.log(`[Teams API] GET: Fetching all teams to filter for userId: ${userId}`);
-
-    // FETCH & FILTER STRATEGY:
-    // To avoid Astra DB nested array query issues, we fetch the teams and filter in-memory.
-    // This is extremely fast for team-scale data and ensures 100% reliability.
-    const allTeams = await teamsColl.find({}).toArray();
+    console.log(`[Teams API] GET: Fetching authorized teams for userId: ${userId}`);
     
-    const userTeams = allTeams.filter(team => 
-      team.members?.some((m: any) => m.userId === userId)
-    );
+    // SECURITY: Fetch and filter authorized teams in memory due to Astra DB query limitations
+    const { getAuthorizedTeams } = await import("@/lib/teams");
+    const userTeams = await getAuthorizedTeams(userId);
 
-    console.log(`[Teams API] Match Success: Found ${userTeams.length} teams for user among ${allTeams.length} total teams.`);
+    console.log(`[Teams API] Match Success: Found ${userTeams.length} teams for user.`);
 
     // Resolve user details for members
     const usersColl = db.collection("users");
@@ -63,6 +58,21 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session || !session.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // SECURITY: Validate CSRF for session-based mutation
+    const { validateCsrf } = await import("@/lib/auth");
+    validateCsrf(request);
+
+    // SECURITY: Rate limit team creation
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = await checkRateLimit(`team_create:${ip}`);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Too Many Requests", message: "Team creation rate limit exceeded." },
+        { status: 429 }
+      );
     }
 
     const { name } = await request.json();

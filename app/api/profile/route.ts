@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
@@ -31,26 +32,41 @@ export async function GET() {
   }
 }
 
+const profileSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  email: z.string().email().optional(),
+  role: z.string().max(50).optional(),
+  team: z.string().max(50).optional(),
+});
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    if (!session) {
+    if (!session || !session.userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { name, email, role, team } = body;
+    const parseResult = profileSchema.safeParse(body);
+    
+    if (!parseResult.success) {
+      return NextResponse.json({ error: "Invalid profile data" }, { status: 400 });
+    }
+
+    const { name, email, role, team } = parseResult.data;
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (role) updateData["profile.role"] = role;
+    if (team) updateData["profile.team"] = team;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+    }
 
     await db.collection("users").updateOne(
       { _id: session.userId },
-      { 
-        $set: { 
-          name, 
-          email,
-          "profile.role": role,
-          "profile.team": team
-        } 
-      }
+      { $set: updateData }
     );
 
     return NextResponse.json({ success: true });

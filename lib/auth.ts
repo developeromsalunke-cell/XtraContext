@@ -45,7 +45,7 @@ export async function authenticateApiKey(
 
   // Look up the API key by its prefix in Astra DB
   const apiKeysCol = db.collection("api_keys");
-  const apiKey = await apiKeysCol.findOne({ prefix });
+  const apiKey = await apiKeysCol.findOne({ prefix, revokedAt: null });
 
   if (!apiKey) {
     throw new AuthError("INVALID_API_KEY");
@@ -113,4 +113,21 @@ export async function createApiKey(teamId: string, userId: string, label: string
   });
 
   return rawKey;
+}
+
+/**
+ * Validates the request origin against the host to prevent CSRF attacks.
+ * Should be used in all session-based mutating routes (POST, PUT, DELETE, PATCH).
+ */
+export function validateCsrf(request: Request): void {
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+  
+  if (!origin) return; // Allow non-browser clients (if needed) or enforce it? 
+  
+  // Basic same-origin check
+  const originUrl = new URL(origin);
+  if (originUrl.host !== host) {
+    throw new AuthError("CSRF validation failed: Origin mismatch");
+  }
 }

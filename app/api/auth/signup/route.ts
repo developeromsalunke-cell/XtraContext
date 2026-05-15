@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { createSession } from "@/lib/session";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { checkRateLimit, setRateLimitHeaders } from "@/lib/rate-limit";
 
 const signupSchema = z.object({
   email: z.string().email(),
@@ -12,7 +13,21 @@ const signupSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  let rateLimitResult;
   try {
+    // SECURITY: Implement rate limiting on signup to prevent enumeration/spam
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    rateLimitResult = await checkRateLimit(`signup:${ip}`);
+    
+    if (!rateLimitResult.success) {
+      const response = NextResponse.json(
+        { error: "Too Many Requests", message: "Account creation rate limit exceeded. Please try again later." },
+        { status: 429 }
+      );
+      setRateLimitHeaders(response.headers, rateLimitResult);
+      return response;
+    }
+
     const body = await request.json();
     const { email, password, name } = signupSchema.parse(body);
 
@@ -56,7 +71,11 @@ export async function POST(request: Request) {
     // 5. Create Session
     await createSession(userId, teamId);
 
-    return NextResponse.json({ success: true, user: { id: userId, name } });
+    const response = NextResponse.json({ success: true, user: { id: userId, name } });
+    if (rateLimitResult) {
+      setRateLimitHeaders(response.headers, rateLimitResult);
+    }
+    return response;
   } catch (error: any) {
     console.error("Signup error:", error);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

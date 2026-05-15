@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { createSession } from "@/lib/session";
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -13,6 +14,12 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email, password } = loginSchema.parse(body);
+
+    // 0. Rate limiting (prevent brute force)
+    const rateLimit = await checkRateLimit(`login:${email}`, { maxRequests: 5, windowMs: 60000 });
+    if (!rateLimit.success) {
+      return NextResponse.json({ error: "Too many login attempts. Please try again in a minute." }, { status: 429 });
+    }
 
     const usersColl = db.collection("users");
     const teamsColl = db.collection("teams");

@@ -9,13 +9,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // SECURITY: Fetch authorized team IDs in memory due to Astra DB query limitations
+    const { getAuthorizedTeamIds } = await import("@/lib/teams");
     const userId = session.userId;
-    const contextStatesColl = db.collection("context_states");
+    const authorizedTeamIds = await getAuthorizedTeamIds(userId);
 
-    // We fetch snapshots for the teams this user belongs to
-    // For simplicity, just get recent snapshots (would filter by team in a larger app)
+    if (authorizedTeamIds.length === 0) {
+      return NextResponse.json({ snapshots: [] });
+    }
+
+    // 2. Fetch snapshots ONLY for authorized teams
+    const contextStatesColl = db.collection("context_states");
     const snapshots = await contextStatesColl.find(
-       {}, 
+       { teamId: { $in: authorizedTeamIds } }, 
        { sort: { version: -1 }, limit: 50 }
     ).toArray();
 

@@ -12,11 +12,9 @@ export async function POST(request: Request) {
 
     const { focus } = await request.json();
 
-    const teams = await db.collection("teams").find({
-      "members.userId": session.userId
-    }).toArray();
-
-    const teamIds = teams.map(t => t._id);
+    // SECURITY: Fetch authorized team IDs in memory due to Astra DB query limitations
+    const { getAuthorizedTeamIds } = await import("@/lib/teams");
+    const teamIds = await getAuthorizedTeamIds(session.userId);
 
     const threads = await db.collection("conversations")
       .find({ teamId: { $in: teamIds } })

@@ -3,6 +3,8 @@ import { getSession } from "@/lib/session";
 import { createApiKey } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { validateCsrf } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const createKeySchema = z.object({
   label: z.string().min(1).max(50),
@@ -43,6 +45,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // SECURITY: Validate CSRF for session-based mutation
+    validateCsrf(request);
+
+    // SECURITY: Rate limit key generation
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = await checkRateLimit(`keys:${ip}`);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Too Many Requests", message: "API key generation rate limit exceeded." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { label } = createKeySchema.parse(body);
 
@@ -64,6 +79,9 @@ export async function DELETE(request: Request) {
     if (!session || !session.teamId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // SECURITY: Validate CSRF for session-based mutation
+    validateCsrf(request);
 
     const { searchParams } = new URL(request.url);
     const keyId = searchParams.get("id");

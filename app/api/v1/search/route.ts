@@ -11,6 +11,7 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q") || "";
+    const queryLower = query.toLowerCase();
 
     if (!query) {
       return NextResponse.json({ results: [] });
@@ -29,18 +30,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ results: [] });
     }
 
-    // 2. Search for matching messages in these conversations
-    // Note: In a real app, we'd use $vector for semantic search or a text index
-    const allMessages = await messagesColl.find({
-      conversationId: { $in: conversationIds }
-    }).toArray();
-
-    const queryLower = query.toLowerCase();
-
-    // 3. Filter messages that match the query
-    const matchingMessages = allMessages.filter(m => 
-      m.content.toLowerCase().includes(queryLower)
-    );
+    // SECURITY: Use database-level regex filtering and projection to prevent memory exhaustion DoS
+    const matchingMessages = await messagesColl.find(
+      { 
+        conversationId: { $in: conversationIds },
+        content: { $regex: query, $options: "i" }
+      },
+      { 
+        projection: { content: 1, role: 1, conversationId: 1, createdAt: 1 },
+        limit: 100 
+      }
+    ).toArray();
 
     // 4. Also find conversations whose title matches the query
     const matchingConversations = teamConversations.filter(c => 

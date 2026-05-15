@@ -81,12 +81,12 @@ export default function DashboardSidebar() {
     >
       {/* Header */}
       <div className={`h-[84px] flex items-center shrink-0 ${collapsed ? 'justify-center px-0' : 'pl-[18px] pr-3 justify-between'}`}>
-        <Link href="/" className={`flex items-center gap-3 group ${collapsed ? 'hidden' : 'flex'}`}>
-          <div className="w-8 h-8 bg-[#FF5733] flex items-center justify-center rounded-lg shrink-0 group-hover:scale-105 transition-transform">
-            <span className="text-black font-black text-base leading-none">X</span>
+        <Link href="/" className="flex items-center gap-1.5 group">
+          <div className="flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
+             <img src="/xtracontext.png" alt="Logo" className="w-10 h-10 object-contain" />
           </div>
-          <span className="text-[15px] font-bold tracking-tight text-white uppercase leading-none">
-            XtraContext
+          <span className={`text-xl font-bold tracking-tight text-white uppercase leading-none transition-all duration-300 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+            <span className="text-[#FF5733]">XTRA</span>CONTEXT
           </span>
         </Link>
         

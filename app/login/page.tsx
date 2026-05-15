@@ -41,18 +41,13 @@ export default function LoginPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#FF5733]/10 rounded-full blur-[120px] pointer-events-none" />
         
         <div className="relative z-10 flex flex-col items-center">
-          <Link href="/" className="inline-flex items-center gap-4 mb-10 group">
-            <div className="w-12 h-12 bg-[#FF5733] flex items-center justify-center rounded-xl shadow-[0_0_20px_rgba(255,87,51,0.3)] transition-transform group-hover:scale-105 group-hover:rotate-3 text-black">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 9v1" />
-                <path d="M12 14v1" />
-                <path d="M15 12h-1" />
-                <path d="M10 12H9" />
-              </svg>
+          <Link href="/" className="inline-flex items-center gap-2 mb-12 group">
+            <div className="flex items-center justify-center transition-transform group-hover:scale-105 group-hover:rotate-3 overflow-hidden">
+               <img src="/xtracontext.png" alt="Logo" className="w-16 h-16 object-contain" />
             </div>
-            <span className="text-4xl font-heading font-black tracking-tight uppercase">XtraContext</span>
+            <span className="text-5xl font-heading font-black tracking-tight uppercase">
+              <span className="text-[#FF5733]">Xtra</span>Context
+            </span>
           </Link>
           <h2 className="text-xl font-medium text-gray-300 mb-3">Your AI's Long-Term Memory</h2>
           <p className="text-xs text-gray-500 uppercase tracking-[0.2em] font-mono font-bold border border-white/10 bg-white/5 px-4 py-1.5 rounded-full">

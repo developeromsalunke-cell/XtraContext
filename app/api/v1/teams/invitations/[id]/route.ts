@@ -2,6 +2,7 @@
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { NextResponse } from "next/server";
+import { validateCsrf } from "@/lib/auth";
 
 /**
  * PATCH /api/v1/teams/invitations/[id]
@@ -18,6 +19,10 @@ export async function PATCH(
     }
 
     const { id } = await params;
+
+    // SECURITY: Validate CSRF for session-based mutation
+    validateCsrf(request);
+
     const { action } = await request.json();
     if (action !== "accept") {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -90,6 +95,10 @@ export async function DELETE(
     }
 
     const { id } = await params;
+
+    // SECURITY: Validate CSRF for session-based mutation
+    validateCsrf(request);
+
     const invitationsColl = db.collection("team_invitations");
     const invitation = await invitationsColl.findOne({ _id: id });
 

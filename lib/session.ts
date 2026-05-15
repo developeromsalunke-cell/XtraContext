@@ -2,7 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const secretKey = process.env.JWT_SECRET || "default_secret_key_change_me";
+const secretKey = process.env.JWT_SECRET;
+if (!secretKey) {
+  throw new Error("JWT_SECRET environment variable is not set");
+}
 const key = new TextEncoder().encode(secretKey);
 
 export async function encrypt(payload: any) {
@@ -14,10 +17,14 @@ export async function encrypt(payload: any) {
 }
 
 export async function decrypt(input: string): Promise<any> {
-  const { payload } = await jwtVerify(input, key, {
-    algorithms: ["HS256"],
-  });
-  return payload;
+  try {
+    const { payload } = await jwtVerify(input, key, {
+      algorithms: ["HS256"],
+    });
+    return payload;
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function createSession(userId: string, teamId: string) {
@@ -51,6 +58,8 @@ export async function updateSession(request: NextRequest) {
     name: "session",
     value: await encrypt(parsed),
     httpOnly: true,
+    secure: true,
+    sameSite: "lax",
     expires: parsed.expires,
   });
   return res;
